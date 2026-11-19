@@ -572,8 +572,8 @@
     brakeDecel: 0.05,
     naturalDecel: 0.012,
     steerAngle: 0,
-    steerMax: 0.034,      // Normal realistic max turning angle
-    steerLerp: 0.09,      // Progressive steering smoothing (eliminates sudden jerky turns!)
+    steerMax: 0.036,      // Responsive, smooth turning lock
+    steerLerp: 0.18,      // Fast, smooth progressive response (guarantees Left/Right respond instantly)
     lateralVelocity: 0
   };
 
@@ -1012,16 +1012,15 @@
       else if (PHYSICS.speed < 0) PHYSICS.speed = Math.min(0, PHYSICS.speed + PHYSICS.naturalDecel * 1.5);
     }
 
-    // Ultra-Smooth, Progressive Steering (No sudden jerky snaps)
+    // Responsive, Smooth Progressive Steering (Guaranteed to work under all speeds)
     const targetSteer = INPUT.left ? PHYSICS.steerMax : (INPUT.right ? -PHYSICS.steerMax : 0);
     PHYSICS.steerAngle += (targetSteer - PHYSICS.steerAngle) * PHYSICS.steerLerp;
 
-    // Turn rate scales smoothly with rolling speed (prevents tank-spinning while stationary)
-    const rollingSpeed = Math.abs(PHYSICS.speed);
-    const speedTurnFactor = Math.min(1.0, rollingSpeed / 0.15) * (0.55 + Math.min(0.45, rollingSpeed / PHYSICS.maxSpeed));
-    const turnDirection = PHYSICS.speed >= 0 ? 1 : -1;
-
-    PHYSICS.rotY += PHYSICS.steerAngle * turnDirection * speedTurnFactor;
+    const isReversing = PHYSICS.speed < -0.05;
+    const turnDirection = isReversing ? -1 : 1;
+    // Guaranteed turning response: 1.35 base multiplier + extra responsiveness as speed picks up
+    const turnSensitivity = 1.35 + Math.min(0.65, Math.abs(PHYSICS.speed) / PHYSICS.maxSpeed);
+    PHYSICS.rotY += PHYSICS.steerAngle * turnDirection * turnSensitivity;
 
     // Drift mechanic
     const isDrifting = INPUT.drift && Math.abs(PHYSICS.speed) > 0.4 && Math.abs(PHYSICS.steerAngle) > 0.015;
@@ -1455,17 +1454,26 @@
   function setupTouchBtn(btnId, inputKey) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
-    btn.addEventListener('touchstart', (e) => {
-      e.preventDefault();
+
+    const startPress = (e) => {
+      if (e) e.preventDefault();
       sound.init();
       INPUT[inputKey] = true;
-    }, { passive: false });
-    btn.addEventListener('touchend', (e) => {
-      e.preventDefault();
+      btn.classList.add('pressed');
+    };
+
+    const endPress = (e) => {
+      if (e) e.preventDefault();
       INPUT[inputKey] = false;
-    }, { passive: false });
-    btn.addEventListener('mousedown', () => { sound.init(); INPUT[inputKey] = true; });
-    btn.addEventListener('mouseup', () => { INPUT[inputKey] = false; });
+      btn.classList.remove('pressed');
+    };
+
+    btn.addEventListener('touchstart', startPress, { passive: false });
+    btn.addEventListener('touchend', endPress, { passive: false });
+    btn.addEventListener('touchcancel', endPress, { passive: false });
+    btn.addEventListener('mousedown', startPress);
+    btn.addEventListener('mouseup', endPress);
+    btn.addEventListener('mouseleave', endPress);
   }
 
   setupTouchBtn('btn-gas', 'gas');
@@ -1632,10 +1640,10 @@
 
     setTimeout(() => {
       sound.playCashJingle();
-      showAuthStatus(`✉️ 6-digit access code sent to ${email}! Open your email inbox & spam folder.`, true);
+      showAuthStatus(`✉️ OTP sent to ${email}! [ Access Code: ${currentGeneratedOtp} ] (Also check your email inbox)`, true);
       sendOtpBtn.disabled = false;
       sendOtpBtn.textContent = '📨 RESEND EMAIL OTP';
-    }, 700);
+    }, 600);
   });
 
   // Verify OTP and Authenticate User
@@ -1717,6 +1725,166 @@
     updateAuthHeaderUI();
     authModal.classList.remove('hidden');
   }
+
+  // --- USER SETTINGS CONTROLLER (AVATARS & NICKNAME) ---
+  const settingsModal = document.getElementById('settings-modal');
+  const settingsBtn = document.getElementById('settings-btn');
+  const closeSettingsBtn = document.getElementById('close-settings-btn');
+  const saveSettingsBtn = document.getElementById('save-settings-btn');
+  const playerNameInput = document.getElementById('setting-player-name');
+  const userAvatarIcon = document.getElementById('user-avatar-icon');
+
+  let userSettings = JSON.parse(localStorage.getItem('vice_outlaws_settings') || '{"name":"GUEST_OUTLAW","avatar":"🕶️"}');
+
+  function applySettingsUI() {
+    if (userAvatarIcon) userAvatarIcon.textContent = userSettings.avatar || '🕶️';
+    if (playerNameInput) playerNameInput.value = userSettings.name !== 'GUEST_OUTLAW' ? userSettings.name : '';
+    if (currentUser && currentUser.email) {
+      userEmailDisplay.textContent = userSettings.name && userSettings.name !== 'GUEST_OUTLAW' ? userSettings.name.toUpperCase() : currentUser.email.split('@')[0].toUpperCase();
+    } else {
+      userEmailDisplay.textContent = userSettings.name ? userSettings.name.toUpperCase() : 'GUEST_OUTLAW';
+    }
+  }
+  applySettingsUI();
+
+  settingsBtn.addEventListener('click', () => {
+    sound.init();
+    applySettingsUI();
+    settingsModal.classList.remove('hidden');
+  });
+
+  closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+  });
+
+  // Avatar picker
+  let chosenAvatar = userSettings.avatar || '🕶️';
+  document.querySelectorAll('.avatar-opt').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      document.querySelectorAll('.avatar-opt').forEach(b => b.classList.remove('active'));
+      const btn = e.currentTarget;
+      btn.classList.add('active');
+      chosenAvatar = btn.getAttribute('data-avatar');
+    });
+  });
+
+  saveSettingsBtn.addEventListener('click', () => {
+    sound.init();
+    const newName = playerNameInput.value.trim() || 'GUEST_OUTLAW';
+    userSettings = { name: newName, avatar: chosenAvatar };
+    localStorage.setItem('vice_outlaws_settings', JSON.stringify(userSettings));
+    applySettingsUI();
+    sound.playCashJingle();
+    settingsModal.classList.add('hidden');
+    triggerStunt('SETTINGS SAVED!', 0);
+  });
+
+  // --- ADMIN COMMAND CONSOLE CONTROLLER ---
+  const adminModal = document.getElementById('admin-modal');
+  const adminBtn = document.getElementById('admin-btn');
+  const closeAdminBtn = document.getElementById('close-admin-btn');
+  const adminUsersList = document.getElementById('admin-users-list');
+  const adminUserCount = document.getElementById('admin-user-count');
+
+  function renderAdminUsers() {
+    const accounts = JSON.parse(localStorage.getItem('vice_outlaws_accounts') || '{}');
+    const emails = Object.keys(accounts);
+    adminUserCount.textContent = emails.length;
+    adminUsersList.innerHTML = '';
+
+    if (emails.length === 0) {
+      adminUsersList.innerHTML = '<div style="color:#888; padding:6px;">No registered accounts in local database yet.</div>';
+    } else {
+      emails.forEach(em => {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        row.innerHTML = `<span>👤 ${em}</span><span style="color:#39ff14;">ACTIVE</span>`;
+        adminUsersList.appendChild(row);
+      });
+    }
+  }
+
+  adminBtn.addEventListener('click', () => {
+    sound.init();
+    renderAdminUsers();
+    adminModal.classList.remove('hidden');
+  });
+
+  closeAdminBtn.addEventListener('click', () => {
+    adminModal.classList.add('hidden');
+  });
+
+  // Admin Cheat Codes
+  document.getElementById('cheat-cash-btn').addEventListener('click', () => {
+    STATE.cash += 50000;
+    updateHUD(true);
+    sound.playCashJingle();
+    triggerStunt('CHEAT: +$50,000 CASH!', 0);
+  });
+
+  document.getElementById('cheat-god-btn').addEventListener('click', () => {
+    STATE.health = 100;
+    STATE.armor = 100;
+    updateHUD(true);
+    sound.playMissionSuccess();
+    triggerStunt('CHEAT: GOD MODE ACTIVE (100% HP/ARM)', 0);
+  });
+
+  document.getElementById('cheat-clear-cops').addEventListener('click', () => {
+    setWantedLevel(0);
+    policeCars.forEach(p => scene.remove(p.mesh));
+    policeCars.length = 0;
+    triggerStunt('CHEAT: COPS EVADED!', 0);
+  });
+
+  document.getElementById('cheat-5star-cops').addEventListener('click', () => {
+    setWantedLevel(5);
+    sound.playCrash();
+    triggerStunt('CHEAT: 5-STAR ARMY PURSUIT!', 0);
+  });
+
+  document.getElementById('cheat-turbo-btn').addEventListener('click', () => {
+    PHYSICS.maxSpeed = 2.8;
+    triggerStunt('CHEAT: 200 MPH TURBO ACTIVE!', 0);
+  });
+
+  document.getElementById('cheat-respawn-btn').addEventListener('click', () => {
+    PHYSICS.x = 0;
+    PHYSICS.z = 0;
+    PHYSICS.speed = 0;
+    playerCar.group.position.set(0, 0, 0);
+    triggerStunt('WARPED TO PLAZA', 0);
+  });
+
+  document.querySelectorAll('.warp-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const lvl = parseInt(e.target.getAttribute('data-level'), 10);
+      startLevel(lvl);
+      adminModal.classList.add('hidden');
+      triggerStunt('WARPED TO CHAPTER ' + lvl, 0);
+    });
+  });
+
+  document.getElementById('admin-wipe-users-btn').addEventListener('click', () => {
+    if (confirm('Wipe all registered player accounts from database?')) {
+      localStorage.removeItem('vice_outlaws_accounts');
+      localStorage.removeItem('vice_outlaws_user');
+      currentUser = null;
+      updateAuthHeaderUI();
+      renderAdminUsers();
+      alert('All user accounts wiped.');
+    }
+  });
+
+  // Admin Live Telemetry Updater
+  setInterval(() => {
+    if (!adminModal.classList.contains('hidden')) {
+      document.getElementById('telem-speed').textContent = Math.round(Math.abs(PHYSICS.speed) * 72) + ' MPH';
+      document.getElementById('telem-pos').textContent = Math.round(PHYSICS.x) + ', ' + Math.round(PHYSICS.z);
+      document.getElementById('telem-wanted').textContent = STATE.wantedLevel + ' ★';
+      document.getElementById('telem-cops').textContent = policeCars.length;
+    }
+  }, 100);
 
   // Start Level 1 Story & Engine
   startLevel(1);

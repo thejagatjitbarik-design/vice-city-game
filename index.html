@@ -47,7 +47,7 @@
       </div>
       <!-- User Profile Badge & Logout -->
       <div id="user-badge" class="user-badge">
-        <span class="user-icon">👤</span>
+        <span id="user-avatar-icon" class="user-icon">🕶️</span>
         <span id="user-email-display">GUEST_OUTLAW</span>
         <button id="auth-toggle-btn" class="auth-btn">LOGIN / OTP</button>
       </div>
@@ -61,6 +61,8 @@
         <button id="radio-btn" class="hud-btn">📻 RADIO: <span id="radio-status">SYNTHWAVE FM</span></button>
         <button id="cam-btn" class="hud-btn">🎥 CAM [C]</button>
         <button id="reset-btn" class="hud-btn">🔄 UNSTUCK [R]</button>
+        <button id="settings-btn" class="hud-btn">⚙️ SETTINGS</button>
+        <button id="admin-btn" class="hud-btn gold-text">👑 ADMIN</button>
       </div>
     </div>
 
@@ -189,6 +191,107 @@
       <div class="modal-buttons">
         <button id="ad-cash-btn" class="modal-btn gold-btn">📺 WATCH AD: FREE +$5,000</button>
         <button id="close-garage-btn" class="modal-btn">BACK TO STREETS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Settings Modal -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content settings-content">
+      <div class="auth-header">
+        <h2 class="auth-title">SETTINGS</h2>
+        <p class="auth-subtitle">PLAYER PROFILE & PREFERENCES</p>
+      </div>
+
+      <div class="auth-form">
+        <div class="input-group">
+          <label for="setting-player-name">OUTLAW DISPLAY NAME</label>
+          <input type="text" id="setting-player-name" placeholder="Viper, Tommy, Ghost..." maxlength="16">
+        </div>
+
+        <div class="input-group">
+          <label>CHOOSE YOUR AVATAR</label>
+          <div class="avatar-grid" id="avatar-grid">
+            <button class="avatar-opt active" data-avatar="🕶️">🕶️</button>
+            <button class="avatar-opt" data-avatar="🏎️">🏎️</button>
+            <button class="avatar-opt" data-avatar="👑">👑</button>
+            <button class="avatar-opt" data-avatar="💀">💀</button>
+            <button class="avatar-opt" data-avatar="🕵️">🕵️</button>
+            <button class="avatar-opt" data-avatar="🌴">🌴</button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>AUDIO & VISUALS</label>
+          <div class="settings-toggle-row">
+            <span>SOUND FX</span>
+            <button id="toggle-sfx-btn" class="toggle-pill active">ON</button>
+          </div>
+          <div class="settings-toggle-row">
+            <span>80s SYNTH RADIO</span>
+            <button id="toggle-radio-setting" class="toggle-pill active">ON</button>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="save-settings-btn" class="modal-btn gold-btn">SAVE PROFILE SETTINGS</button>
+          <button id="close-settings-btn" class="modal-btn">BACK TO STREETS</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Control Panel Modal -->
+  <div id="admin-modal" class="modal hidden">
+    <div class="modal-content admin-content">
+      <div class="admin-header">
+        <h2 class="admin-title">👑 ADMIN COMMAND CONSOLE</h2>
+        <p class="admin-subtitle">DEVELOPER & SERVER MANAGEMENT</p>
+      </div>
+
+      <!-- Live Telemetry -->
+      <div class="admin-telemetry">
+        <div class="telem-item">SPEED: <b id="telem-speed">0 MPH</b></div>
+        <div class="telem-item">POS: <b id="telem-pos">0, 0</b></div>
+        <div class="telem-item">WANTED: <b id="telem-wanted">0 ★</b></div>
+        <div class="telem-item">POLICE: <b id="telem-cops">0</b></div>
+      </div>
+
+      <!-- Cheats & Game Controls -->
+      <div class="admin-section">
+        <h3>⚡ GOD MODE & CHEAT CODES</h3>
+        <div class="admin-btn-grid">
+          <button id="cheat-cash-btn" class="admin-action-btn">💰 +$50,000 CASH</button>
+          <button id="cheat-god-btn" class="admin-action-btn">🛡️ GOD MODE (MAX HP/ARM)</button>
+          <button id="cheat-clear-cops" class="admin-action-btn">⭐ CLEAR WANTED LEVEL</button>
+          <button id="cheat-5star-cops" class="admin-action-btn red-action">🚨 5-STAR ARMY PURSUIT</button>
+          <button id="cheat-turbo-btn" class="admin-action-btn">🚀 SUPER TURBO (200 MPH)</button>
+          <button id="cheat-respawn-btn" class="admin-action-btn">🔄 RESET PLAYER TO PLAZA</button>
+        </div>
+      </div>
+
+      <!-- Level Warp -->
+      <div class="admin-section">
+        <h3>⏭️ WARP TO STORY CHAPTER</h3>
+        <div class="admin-btn-grid">
+          <button class="warp-btn" data-level="1">CH 1: VAULT HEIST</button>
+          <button class="warp-btn" data-level="2">CH 2: SPEED BOMB</button>
+          <button class="warp-btn" data-level="3">CH 3: THUNDERSTORM</button>
+          <button class="warp-btn" data-level="4">CH 4: APEX ESCAPE</button>
+        </div>
+      </div>
+
+      <!-- Registered Users Manager -->
+      <div class="admin-section">
+        <h3>👥 REGISTERED DATABASE USERS (<span id="admin-user-count">0</span>)</h3>
+        <div class="admin-users-list" id="admin-users-list">
+          <!-- Populated dynamically -->
+        </div>
+        <button id="admin-wipe-users-btn" class="modal-btn danger-btn">🗑️ WIPE ALL USER DATA</button>
+      </div>
+
+      <div class="modal-buttons">
+        <button id="close-admin-btn" class="modal-btn">CLOSE ADMIN CONSOLE</button>
       </div>
     </div>
   </div>
