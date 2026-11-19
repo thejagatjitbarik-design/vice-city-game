@@ -1089,6 +1089,87 @@ html, body {
   z-index: 50;
 }
 
+/* CHAPTER 3: CARTEL TRAITOR HEALTH BANNER */
+.traitor-health-banner {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 6, 32, 0.94);
+  border: 2px solid #ffd700;
+  border-radius: 10px;
+  padding: 10px 20px;
+  min-width: 310px;
+  max-width: 90vw;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.5), inset 0 0 15px rgba(255, 0, 127, 0.3);
+  text-align: center;
+  pointer-events: none;
+  z-index: 45;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.traitor-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.traitor-icon {
+  font-size: 18px;
+  animation: pulseSlow 1s infinite alternate;
+}
+
+.traitor-title {
+  font-family: 'Orbitron', 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 1px;
+}
+
+.traitor-dist {
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  font-weight: 900;
+  color: #00f0ff;
+  text-shadow: 0 0 8px #00f0ff;
+}
+
+.traitor-bar-wrap {
+  width: 100%;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #ffd700;
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.9);
+}
+
+.traitor-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0055, #ffd700);
+  box-shadow: 0 0 10px #ff0055;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.traitor-subtext {
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 6px #ff0055;
+}
+
+/* ADMIN PASSCODE GATE MODAL */
+.admin-passcode-content {
+  max-width: 380px;
+  border-color: #ffd700;
+  box-shadow: 0 0 35px rgba(255, 215, 0, 0.45);
+}
+
 .bomb-icon {
   font-size: 32px;
   animation: shakeBomb 0.2s infinite;

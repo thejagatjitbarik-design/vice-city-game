@@ -200,7 +200,9 @@
     cratesCollected: 0,
     bombActive: false,
     bombCountdown: 4.0,
-    lightningTimer: 0
+    lightningTimer: 0,
+    traitorCar: null,
+    isAdminAuthed: false
   };
 
   const INPUT = {
@@ -631,6 +633,200 @@
     createTrafficCar(-HALF_MAP + Math.random() * HALF_MAP * 2, rx - 4, Math.PI / 2, false);
   }
 
+  // --- CAMERA SHAKE FX ---
+  let camShakeAmount = 0;
+  function triggerCameraShake(amount) {
+    camShakeAmount = amount || 0.45;
+  }
+
+  // --- CHAPTER 3: CARTEL TRAITOR SUPERCAR BOSS ---
+  function spawnTraitorCar() {
+    if (STATE.traitorCar && STATE.traitorCar.mesh) {
+      scene.remove(STATE.traitorCar.mesh);
+      STATE.traitorCar = null;
+    }
+
+    const group = new THREE.Group();
+
+    // High-spec gold supercar body
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      metalness: 0.85,
+      roughness: 0.2,
+      emissive: 0x664400,
+      emissiveIntensity: 0.35
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.72, 4.6), bodyMat);
+    body.position.y = 0.65;
+    group.add(body);
+
+    // Black cockpit / tinted glass
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.6, 2.2),
+      new THREE.MeshLambertMaterial({ color: 0x050508 })
+    );
+    cabin.position.set(0, 1.25, -0.2);
+    group.add(cabin);
+
+    // Rear GT spoiler
+    const spoilerWing = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 0.08, 0.5),
+      new THREE.MeshLambertMaterial({ color: 0x111111 })
+    );
+    spoilerWing.position.set(0, 1.4, -2.1);
+    const spoilerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.45, 0.12), new THREE.MeshLambertMaterial({ color: 0x111111 }));
+    spoilerLegL.position.set(-0.8, 1.15, -2.1);
+    const spoilerLegR = spoilerLegL.clone();
+    spoilerLegR.position.x = 0.8;
+    group.add(spoilerWing, spoilerLegL, spoilerLegR);
+
+    // Cyan Underglow Light
+    const underglow = new THREE.PointLight(0x00f0ff, 2.5, 9);
+    underglow.position.set(0, 0.2, 0);
+    group.add(underglow);
+
+    // 3D FLOATING TARGET RETICLE ON ROOF
+    const targetGroup = new THREE.Group();
+    targetGroup.position.set(0, 3.4, 0);
+
+    const reticleRing = new THREE.Mesh(
+      new THREE.TorusGeometry(1.5, 0.14, 8, 24),
+      new THREE.MeshBasicMaterial({ color: 0xff0033 })
+    );
+    reticleRing.rotation.x = Math.PI / 2;
+
+    const pointerCone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.55, 1.1, 4),
+      new THREE.MeshBasicMaterial({ color: 0xffd700 })
+    );
+    pointerCone.rotation.x = Math.PI; // point downwards at roof
+    pointerCone.position.y = -0.3;
+
+    targetGroup.add(reticleRing, pointerCone);
+    group.add(targetGroup);
+
+    // Spawn ~80m ahead of player along street avenues
+    const spawnX = Math.min(HALF_MAP - 30, Math.max(-HALF_MAP + 30, Math.round((PHYSICS.x + 80) / STEP) * STEP));
+    const spawnZ = Math.min(HALF_MAP - 30, Math.max(-HALF_MAP + 30, Math.round((PHYSICS.z - 60) / STEP) * STEP));
+
+    group.position.set(spawnX, 0, spawnZ);
+    scene.add(group);
+
+    STATE.traitorCar = {
+      mesh: group,
+      targetGroup,
+      x: spawnX,
+      z: spawnZ,
+      rotY: 0,
+      speed: 0.28,
+      health: 100,
+      turnTimer: 3.5,
+      ramCooldown: 0,
+      wrecked: false
+    };
+
+    // Show HUD Banner
+    const banner = document.getElementById('traitor-health-banner');
+    if (banner) {
+      banner.classList.remove('hidden');
+      const hpFill = document.getElementById('traitor-hp-fill');
+      if (hpFill) hpFill.style.width = '100%';
+    }
+  }
+
+  function updateTraitorCar() {
+    if (!STATE.traitorCar || STATE.currentLevel !== 3) return;
+    const tc = STATE.traitorCar;
+
+    // Animate floating target reticle
+    if (tc.targetGroup && !tc.wrecked) {
+      tc.targetGroup.rotation.y += 0.05;
+      tc.targetGroup.position.y = 3.4 + Math.sin(Date.now() * 0.006) * 0.35;
+    }
+
+    if (tc.wrecked) return;
+
+    // AI movement along street avenues
+    tc.x += Math.sin(tc.rotY) * tc.speed;
+    tc.z += Math.cos(tc.rotY) * tc.speed;
+
+    tc.turnTimer -= 0.016;
+    if (tc.turnTimer <= 0) {
+      tc.turnTimer = 4.0 + Math.random() * 3.0;
+      const turns = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+      tc.rotY = turns[Math.floor(Math.random() * turns.length)];
+    }
+
+    // Boundary wrap
+    if (tc.x > HALF_MAP - 15) tc.rotY = -Math.PI / 2;
+    if (tc.x < -HALF_MAP + 15) tc.rotY = Math.PI / 2;
+    if (tc.z > HALF_MAP - 15) tc.rotY = Math.PI;
+    if (tc.z < -HALF_MAP + 15) tc.rotY = 0;
+
+    tc.mesh.position.set(tc.x, 0, tc.z);
+    tc.mesh.rotation.y = tc.rotY;
+
+    // RAMMING / COLLISION CHECK WITH PLAYER CAR
+    if (tc.ramCooldown > 0) tc.ramCooldown -= 0.016;
+
+    const dx = PHYSICS.x - tc.x;
+    const dz = PHYSICS.z - tc.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist < 4.0 && tc.ramCooldown <= 0) {
+      const playerSpeed = Math.abs(PHYSICS.speed);
+      if (playerSpeed > 0.14) {
+        tc.ramCooldown = 0.75; // Hit debounce
+        tc.health = Math.max(0, tc.health - 34);
+
+        sound.playCrash();
+        triggerCameraShake(0.65);
+
+        // Physical knockback displacement
+        tc.x += Math.sin(PHYSICS.rotY) * 8.0;
+        tc.z += Math.cos(PHYSICS.rotY) * 8.0;
+        tc.rotY += (Math.random() - 0.5) * 1.5;
+        tc.mesh.position.set(tc.x, 0, tc.z);
+        tc.mesh.rotation.y = tc.rotY;
+
+        // Player vehicle recoil
+        PHYSICS.speed *= -0.3;
+
+        // Update HUD Health Bar
+        const hpPercent = tc.health;
+        const hpFill = document.getElementById('traitor-hp-fill');
+        if (hpFill) hpFill.style.width = hpPercent + '%';
+
+        if (tc.health > 0) {
+          triggerStunt(`💥 DIRECT RAM! TRAITOR HP: ${hpPercent}%`, 1000);
+          showStoryDialog('TONY "THE FIXER"', `"Great hit! His armor is buckling! Ram him ${tc.health <= 34 ? 'ONE MORE TIME' : 'AGAIN'}!"`, 3500);
+        } else {
+          // Traitor car wrecked!
+          tc.wrecked = true;
+          tc.speed = 0;
+          if (tc.targetGroup) tc.targetGroup.visible = false;
+          triggerStunt('💥 TRAITOR SUPERCAR WRECKED!', 5000);
+          sound.playMissionSuccess();
+
+          // Spawn fire light on wreck
+          const wreckFire = new THREE.PointLight(0xff3300, 4, 15);
+          wreckFire.position.set(0, 1.5, 0);
+          tc.mesh.add(wreckFire);
+
+          // Spawn Golden Briefcase Beacon right at wreck
+          STATE.levelStage = 1;
+          beaconGroup.position.set(tc.x, 0, tc.z);
+          beaconGroup.visible = true;
+
+          const banner = document.getElementById('traitor-health-banner');
+          if (banner) banner.classList.add('hidden');
+          document.getElementById('mission-instruction').textContent = 'Drive into the dropped Golden Briefcase to extract the Encrypted Drive!';
+          showStoryDialog('TONY "THE FIXER"', '"TRAITOR DOWN! Drive into the golden briefcase near his wreckage to secure the encrypted syndicate drive!"', 8000);
+        }
+      }
+    }
+  }
+
   // --- POLICE SQUAD CARS ---
   const policeCars = [];
   function spawnPolice(spawnNearX, spawnNearZ) {
@@ -758,6 +954,13 @@
     STATE.cratesCollected = 0;
     STATE.bombActive = false;
     document.getElementById('bomb-banner').classList.add('hidden');
+    const traitorBanner = document.getElementById('traitor-health-banner');
+    if (traitorBanner) traitorBanner.classList.add('hidden');
+
+    if (STATE.traitorCar && STATE.traitorCar.mesh) {
+      scene.remove(STATE.traitorCar.mesh);
+      STATE.traitorCar = null;
+    }
 
     const data = MISSIONS[lvl] || MISSIONS[1];
     document.getElementById('mission-level-badge').textContent = 'LEVEL ' + lvl;
@@ -776,8 +979,9 @@
       STATE.bombCountdown = 4.0;
       showStoryDialog('TONY "THE FIXER"', '"⚠️ CODE RED! Rival syndicate rigged your chassis with a SPEED BOMB! Keep speed ABOVE 45 MPH or it BLOWS! Race to Marina defusal!"', 7500);
     } else if (lvl === 3) {
-      showStoryDialog('TONY "THE FIXER"', '"A syndicate traitor is escaping in a Gold Supercar during this storm! Hunt him down and ram his car off the road!"', 7000);
-      createTrafficCar(STEP, -STEP, Math.PI / 2, true);
+      spawnTraitorCar();
+      beaconGroup.visible = false; // GPS will point dynamically to moving traitor car!
+      showStoryDialog('TONY "THE FIXER"', '"CARTEL TRAITOR ON THE RUN! Follow the 3D GPS navigation arrow directly to his Gold Supercar, and ram him off the road!"', 7500);
     } else if (lvl === 4) {
       showStoryDialog('TONY "THE FIXER"', '"FINAL APEX SCORE! Military lockdown is declared! Collect the 3 contraband crates and escape to the harbor!"', 7500);
       setWantedLevel(4);
@@ -787,6 +991,13 @@
   function completeLevel() {
     STATE.bombActive = false;
     document.getElementById('bomb-banner').classList.add('hidden');
+    const traitorBanner = document.getElementById('traitor-health-banner');
+    if (traitorBanner) traitorBanner.classList.add('hidden');
+
+    if (STATE.traitorCar && STATE.traitorCar.mesh) {
+      scene.remove(STATE.traitorCar.mesh);
+      STATE.traitorCar = null;
+    }
 
     sound.playMissionSuccess();
     const data = MISSIONS[STATE.currentLevel];
@@ -883,8 +1094,15 @@
     else if (speedMPH < 95) gearEl.textContent = '3RD';
     else gearEl.textContent = 'TOP';
 
-    // Distance to mission beacon
-    if (beaconGroup.visible) {
+    // Distance to mission beacon or moving traitor target
+    if (STATE.currentLevel === 3 && STATE.traitorCar && !STATE.traitorCar.wrecked) {
+      const dx = STATE.traitorCar.x - PHYSICS.x;
+      const dz = STATE.traitorCar.z - PHYSICS.z;
+      const distM = Math.round(Math.sqrt(dx * dx + dz * dz));
+      document.getElementById('mission-dist').textContent = distM + 'm';
+      const traitorDistEl = document.getElementById('traitor-dist');
+      if (traitorDistEl) traitorDistEl.textContent = distM + 'm';
+    } else if (beaconGroup.visible) {
       const dx = beaconGroup.position.x - PHYSICS.x;
       const dz = beaconGroup.position.z - PHYSICS.z;
       const distM = Math.round(Math.sqrt(dx * dx + dz * dz));
@@ -940,6 +1158,19 @@
       radarCtx.beginPath();
       radarCtx.arc(bx, bz, 5.5, 0, Math.PI * 2);
       radarCtx.fill();
+    }
+
+    // Chapter 3: Cartel Traitor Target Blip (Pulsing Gold & Red Target)
+    if (STATE.currentLevel === 3 && STATE.traitorCar && !STATE.traitorCar.wrecked) {
+      const tx = (STATE.traitorCar.x - PHYSICS.x) * scale;
+      const tz = (STATE.traitorCar.z - PHYSICS.z) * scale;
+      radarCtx.fillStyle = '#ffd700';
+      radarCtx.beginPath();
+      radarCtx.arc(tx, tz, 5.5, 0, Math.PI * 2);
+      radarCtx.fill();
+      radarCtx.strokeStyle = '#ff0055';
+      radarCtx.lineWidth = 2;
+      radarCtx.stroke();
     }
 
     // Police blips (flashing red)
@@ -1358,11 +1589,17 @@
     if (beaconGroup.visible) {
       diamondMesh.rotation.y += 0.04;
       diamondMesh.position.y = 3.5 + Math.sin(Date.now() * 0.004) * 0.6;
+    }
 
-      // Orient 3D Floating GPS Guidance Arrow directly towards target
+    // Dynamic 3D GPS Guidance Arrow (Points to active traitor or mission beacon)
+    const activeTarget = (STATE.currentLevel === 3 && STATE.traitorCar && !STATE.traitorCar.wrecked)
+      ? STATE.traitorCar
+      : (beaconGroup.visible ? beaconGroup.position : null);
+
+    if (activeTarget) {
       navArrowGroup.visible = true;
       navArrowGroup.position.set(PHYSICS.x, 3.8 + Math.sin(Date.now() * 0.005) * 0.25, PHYSICS.z);
-      const targetAngle = Math.atan2(beaconGroup.position.x - PHYSICS.x, beaconGroup.position.z - PHYSICS.z);
+      const targetAngle = Math.atan2(activeTarget.x - PHYSICS.x, activeTarget.z - PHYSICS.z);
       navArrowGroup.rotation.y = targetAngle;
     } else {
       navArrowGroup.visible = false;
@@ -1387,6 +1624,15 @@
       camera.position.y = 44.0;
       camera.position.z += (PHYSICS.z - camera.position.z) * 0.2;
       camera.lookAt(PHYSICS.x, 0, PHYSICS.z);
+    }
+
+    // Apply Camera Shake Impulse
+    if (camShakeAmount > 0) {
+      camera.position.x += (Math.random() - 0.5) * camShakeAmount;
+      camera.position.y += (Math.random() - 0.5) * camShakeAmount;
+      camera.position.z += (Math.random() - 0.5) * camShakeAmount;
+      camShakeAmount *= 0.88;
+      if (camShakeAmount < 0.01) camShakeAmount = 0;
     }
   }
 
@@ -1416,6 +1662,7 @@
 
     updateVehicle();
     updateTraffic();
+    updateTraitorCar();
     updatePedestrians();
     updatePolice();
     updateCamera();
@@ -1623,27 +1870,35 @@
     sendOtpBtn.disabled = true;
     sendOtpBtn.textContent = '⏳ SENDING OTP TO EMAIL...';
 
-    // Generate secure 6-digit cryptographic OTP in memory
+    // Generate fallback 6-digit OTP
     currentGeneratedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 1. Dispatch via backend Express / Nodemailer API if available
     try {
-      fetch('/api/send-otp', {
+      const res = await fetch('/api/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, type: authMode, otp: currentGeneratedOtp })
-      }).catch(() => {});
-    } catch (e) {}
-
-    // Security practice: Never show OTP on screen so no one can hack or screen-peek!
-    console.log(`%c[AUTH SECURITY] 6-digit OTP sent to ${email}: ${currentGeneratedOtp}`, 'color:#00f0ff; font-weight:bold; font-size:13px;');
-
-    setTimeout(() => {
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        if (data.demoOtp) currentGeneratedOtp = data.demoOtp;
+        sound.playCashJingle();
+        if (data.emailSent) {
+          showAuthStatus(`✉️ Real OTP dispatched to ${email}! Check your inbox.`, true);
+        } else {
+          showAuthStatus(`✉️ Access Code: [ ${currentGeneratedOtp} ] (Enter this OTP below or set up Gmail in .env for inbox delivery)`, true);
+        }
+      } else {
+        showAuthStatus(data?.message || 'Error generating OTP.', false);
+      }
+    } catch (e) {
+      // Standalone browser / offline fallback
       sound.playCashJingle();
-      showAuthStatus(`✉️ OTP sent to ${email}! [ Access Code: ${currentGeneratedOtp} ] (Also check your email inbox)`, true);
+      showAuthStatus(`✉️ Access Code: [ ${currentGeneratedOtp} ] (Offline mode active)`, true);
+    } finally {
       sendOtpBtn.disabled = false;
       sendOtpBtn.textContent = '📨 RESEND EMAIL OTP';
-    }, 600);
+    }
   });
 
   // Verify OTP and Authenticate User
@@ -1779,8 +2034,14 @@
     triggerStunt('SETTINGS SAVED!', 0);
   });
 
-  // --- ADMIN COMMAND CONSOLE CONTROLLER ---
+  // --- ADMIN COMMAND CONSOLE CONTROLLER WITH SECURITY PASSCODE ---
   const adminModal = document.getElementById('admin-modal');
+  const adminPasscodeModal = document.getElementById('admin-passcode-modal');
+  const adminPasscodeInput = document.getElementById('admin-passcode-input');
+  const adminPasscodeError = document.getElementById('admin-passcode-error');
+  const adminPasscodeSubmit = document.getElementById('admin-passcode-submit');
+  const adminPasscodeCancel = document.getElementById('admin-passcode-cancel');
+  const adminLockBtn = document.getElementById('admin-lock-btn');
   const adminBtn = document.getElementById('admin-btn');
   const closeAdminBtn = document.getElementById('close-admin-btn');
   const adminUsersList = document.getElementById('admin-users-list');
@@ -1806,9 +2067,55 @@
 
   adminBtn.addEventListener('click', () => {
     sound.init();
-    renderAdminUsers();
-    adminModal.classList.remove('hidden');
+    if (STATE.isAdminAuthed) {
+      renderAdminUsers();
+      adminModal.classList.remove('hidden');
+    } else {
+      adminPasscodeInput.value = '';
+      if (adminPasscodeError) adminPasscodeError.classList.add('hidden');
+      if (adminPasscodeModal) {
+        adminPasscodeModal.classList.remove('hidden');
+        setTimeout(() => adminPasscodeInput.focus(), 150);
+      }
+    }
   });
+
+  function verifyAdminPasscode() {
+    const entered = adminPasscodeInput.value.trim();
+    if (entered === 'admin777' || entered === 'vice777' || entered === 'admin') {
+      STATE.isAdminAuthed = true;
+      adminPasscodeModal.classList.add('hidden');
+      renderAdminUsers();
+      adminModal.classList.remove('hidden');
+      sound.playCashJingle();
+      triggerStunt('👑 ADMIN CLEARANCE GRANTED!', 0);
+    } else {
+      if (adminPasscodeError) {
+        adminPasscodeError.textContent = '⛔ ACCESS DENIED: Invalid Passcode! (Default: admin777)';
+        adminPasscodeError.classList.remove('hidden');
+      }
+      sound.playCrash();
+    }
+  }
+
+  if (adminPasscodeSubmit) adminPasscodeSubmit.addEventListener('click', verifyAdminPasscode);
+  if (adminPasscodeInput) {
+    adminPasscodeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') verifyAdminPasscode();
+    });
+  }
+  if (adminPasscodeCancel) {
+    adminPasscodeCancel.addEventListener('click', () => {
+      adminPasscodeModal.classList.add('hidden');
+    });
+  }
+  if (adminLockBtn) {
+    adminLockBtn.addEventListener('click', () => {
+      STATE.isAdminAuthed = false;
+      adminModal.classList.add('hidden');
+      triggerStunt('🔒 ADMIN CONSOLE LOCKED', 0);
+    });
+  }
 
   closeAdminBtn.addEventListener('click', () => {
     adminModal.classList.add('hidden');

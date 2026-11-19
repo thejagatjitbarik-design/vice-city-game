@@ -76,6 +76,19 @@
       <div id="mission-sub-status">DISTANCE: <span id="mission-dist">120m</span></div>
     </div>
 
+    <!-- Chapter 3: Cartel Traitor Target & Health Banner -->
+    <div id="traitor-health-banner" class="traitor-health-banner hidden">
+      <div class="traitor-info">
+        <span class="traitor-icon">🎯</span>
+        <span class="traitor-title">CARTEL TRAITOR SUPERCAR</span>
+        <span id="traitor-dist" class="traitor-dist">-- m</span>
+      </div>
+      <div class="traitor-bar-wrap">
+        <div id="traitor-hp-fill" class="traitor-hp-fill" style="width: 100%;"></div>
+      </div>
+      <div class="traitor-subtext">RAM HIS SUPERCAR AT HIGH SPEED!</div>
+    </div>
+
     <!-- Thriller Speed Bomb Warning Banner (Mission 2) -->
     <div id="bomb-banner" class="bomb-banner hidden">
       <div class="bomb-icon">💣</div>
@@ -241,6 +254,28 @@
     </div>
   </div>
 
+  <!-- Admin Passcode Gate Modal -->
+  <div id="admin-passcode-modal" class="modal hidden">
+    <div class="modal-content admin-passcode-content">
+      <div class="admin-header">
+        <h2 class="admin-title">🔒 ADMIN CLEARANCE</h2>
+        <p class="admin-subtitle">RESTRICTED COMMAND CENTER</p>
+      </div>
+      <p style="font-size: 13px; color: #ccc; margin-bottom: 14px; text-align: center;">
+        Developer authentication required to access God Mode and Server controls.
+      </p>
+      <div class="input-group">
+        <label for="admin-passcode-input">MASTER PASSCODE</label>
+        <input type="password" id="admin-passcode-input" placeholder="Enter admin passcode (admin777)..." autocomplete="off">
+      </div>
+      <div id="admin-passcode-error" class="auth-status auth-status-err hidden"></div>
+      <div class="modal-buttons" style="margin-top: 14px;">
+        <button id="admin-passcode-submit" class="modal-btn gold-btn">🔓 UNLOCK CONSOLE</button>
+        <button id="admin-passcode-cancel" class="modal-btn">CANCEL</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin Control Panel Modal -->
   <div id="admin-modal" class="modal hidden">
     <div class="modal-content admin-content">
@@ -291,6 +326,7 @@
       </div>
 
       <div class="modal-buttons">
+        <button id="admin-lock-btn" class="modal-btn secondary-btn">🔒 LOCK CONSOLE</button>
         <button id="close-admin-btn" class="modal-btn">CLOSE ADMIN CONSOLE</button>
       </div>
     </div>
