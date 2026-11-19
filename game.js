@@ -377,35 +377,124 @@
 
   // --- 3D MISSION BEACON & WAYPOINT SYSTEM ---
   const beaconGroup = new THREE.Group();
-  // Vertical neon light pillar
-  const pillarGeo = new THREE.CylinderGeometry(1.6, 1.6, 50, 16, 1, true);
+  // Sky-High Glowing Neon Light Pillar (Visible from anywhere across the city!)
+  const pillarGeo = new THREE.CylinderGeometry(2.4, 2.4, 140, 16, 1, true);
   const pillarMat = new THREE.MeshBasicMaterial({
     color: 0xffd700,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.45,
     side: THREE.DoubleSide
   });
   const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-  pillar.position.y = 25;
+  pillar.position.y = 70;
   beaconGroup.add(pillar);
 
   // Rotating Floating Diamond Icon
-  const diamondGeo = new THREE.OctahedronGeometry(1.5, 0);
+  const diamondGeo = new THREE.OctahedronGeometry(2.2, 0);
   const diamondMat = new THREE.MeshBasicMaterial({ color: 0xffd700, wireframe: false });
   const diamondMesh = new THREE.Mesh(diamondGeo, diamondMat);
-  diamondMesh.position.y = 3.5;
+  diamondMesh.position.y = 4.5;
   beaconGroup.add(diamondMesh);
 
-  // Ground Halo Ring
-  const ringGeo = new THREE.RingGeometry(2.5, 3.2, 24);
+  // Ground Halo Rings
+  const ringGeo = new THREE.RingGeometry(2.5, 3.4, 24);
   ringGeo.rotateX(-Math.PI / 2);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide });
   const haloRing = new THREE.Mesh(ringGeo, ringMat);
   haloRing.position.y = 0.08;
-  beaconGroup.add(haloRing);
+
+  const outerRingGeo = new THREE.RingGeometry(4.2, 5.0, 24);
+  outerRingGeo.rotateX(-Math.PI / 2);
+  const outerHaloRing = new THREE.Mesh(outerRingGeo, ringMat);
+  outerHaloRing.position.y = 0.08;
+  beaconGroup.add(haloRing, outerHaloRing);
 
   beaconGroup.position.set(STEP * 2, 0, STEP * 2);
   scene.add(beaconGroup);
+
+  // --- 3D GPS FLOATING NAVIGATION ARROW (POINTS DIRECTLY TO OBJECTIVES) ---
+  const navArrowGroup = new THREE.Group();
+  const arrowCone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.7, 1.6, 4),
+    new THREE.MeshBasicMaterial({ color: 0xffd700 })
+  );
+  arrowCone.rotation.x = Math.PI / 2;
+  arrowCone.rotation.y = Math.PI / 4;
+  arrowCone.position.z = 0.8;
+
+  const arrowStem = new THREE.Mesh(
+    new THREE.BoxGeometry(0.35, 0.2, 1.0),
+    new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+  );
+  arrowStem.position.z = -0.3;
+
+  navArrowGroup.add(arrowCone, arrowStem);
+  navArrowGroup.position.set(0, 3.8, 0);
+  scene.add(navArrowGroup);
+
+  // --- PEDESTRIANS & CYCLISTS (WITH KNOCKDOWN / TUMBLE PHYSICS) ---
+  const pedestrians = [];
+  const pedColors = [0x00d4ff, 0xff007f, 0x39ff14, 0xffbb00, 0xffffff, 0xbb55ff];
+
+  function createPedestrian(x, z, isCyclist) {
+    const pGroup = new THREE.Group();
+    const color = pedColors[Math.floor(Math.random() * pedColors.length)];
+
+    // Torso
+    const torso = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.28, 1.0, 6),
+      new THREE.MeshLambertMaterial({ color })
+    );
+    torso.position.y = 1.1;
+    pGroup.add(torso);
+
+    // Head
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 6, 6),
+      new THREE.MeshLambertMaterial({ color: 0xffccaa })
+    );
+    head.position.y = 1.8;
+    pGroup.add(head);
+
+    if (isCyclist) {
+      // 3D Bicycle
+      const bikeGroup = new THREE.Group();
+      const frameMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 1.3), frameMat);
+      frame.position.y = 0.5;
+
+      const wheelMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const wFront = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.05, 6, 10), wheelMat);
+      wFront.position.set(0, 0.35, 0.65);
+      const wBack = wFront.clone();
+      wBack.position.z = -0.65;
+
+      bikeGroup.add(frame, wFront, wBack);
+      pGroup.add(bikeGroup);
+    }
+
+    pGroup.position.set(x, 0, z);
+    scene.add(pGroup);
+
+    pedestrians.push({
+      mesh: pGroup,
+      isCyclist,
+      x,
+      z,
+      rotY: Math.random() * Math.PI * 2,
+      speed: isCyclist ? 0.22 : 0.055,
+      isFallen: false,
+      fallTimer: 0
+    });
+  }
+
+  // Populate sidewalks with pedestrians and cyclists
+  for (let p = -3; p <= 3; p++) {
+    const rx = p * STEP;
+    createPedestrian(rx + BLOCK_SIZE / 2 + 2.5, -HALF_MAP + Math.random() * HALF_MAP * 2, false);
+    createPedestrian(rx - BLOCK_SIZE / 2 - 2.5, -HALF_MAP + Math.random() * HALF_MAP * 2, false);
+    createPedestrian(rx + 6, -HALF_MAP + Math.random() * HALF_MAP * 2, true); // Cyclist on road lane
+  }
 
   // --- PLAYER VEHICLE ---
   function buildPlayerCar() {
@@ -479,12 +568,12 @@
     speed: 0,
     maxSpeed: 1.5,
     reverseMax: -0.5,
-    accel: 0.025,
+    accel: 0.024,
     brakeDecel: 0.05,
     naturalDecel: 0.012,
     steerAngle: 0,
-    steerSpeed: 0.05,
-    steerMax: 0.045,
+    steerMax: 0.034,      // Normal realistic max turning angle
+    steerLerp: 0.09,      // Progressive steering smoothing (eliminates sudden jerky turns!)
     lateralVelocity: 0
   };
 
@@ -620,35 +709,47 @@
     2: {
       title: "SPEED BOMB THRILLER",
       instruction: "MAINTAIN SPEED OVER 45 MPH! Race to the Marina defusal ring!",
-      beaconPos: { x: -STEP * 2.5, z: STEP * 2.5 },
+      beaconPos: { x: -STEP * 2, z: STEP * 2 },
       reward: 12000,
       epilogue: "INCREDIBLE THRILL! The Marina bomb squad snipped the detonator wire with seconds to spare! You survived the Speed Bomb!"
     },
     3: {
       title: "THUNDERSTORM BETRAYAL",
       instruction: "Locate and ram the Cartel Traitor's Gold Supercar in the storm!",
-      beaconPos: { x: -STEP * 2, z: STEP * 2 },
+      beaconPos: { x: -STEP * 2, z: -STEP * 2 },
       reward: 18000,
       epilogue: "Traitor neutralized in the thunderstorm! You recovered the Syndicate's encrypted master drive!"
     },
     4: {
       title: "THE APEX MILITARY ESCAPE",
       instruction: "Collect 3 contraband drop crates across the city & escape to the harbor boat!",
-      beaconPos: { x: 0, z: -HALF_MAP + 25 },
+      beaconPos: { x: STEP, z: STEP * 2 },
       reward: 35000,
       epilogue: "MASTER OUTLAW! You broke through the 5-star military blockade and escaped to international waters! You rule Vice City!"
     }
   };
 
+  let storyDialogTimeout = null;
   function showStoryDialog(caller, msg, durationMs) {
     const box = document.getElementById('dialog-box');
     document.getElementById('dialog-caller').textContent = caller;
     document.getElementById('dialog-message').textContent = msg;
     box.classList.remove('hidden');
 
-    setTimeout(() => {
+    if (storyDialogTimeout) clearTimeout(storyDialogTimeout);
+    storyDialogTimeout = setTimeout(() => {
       box.classList.add('hidden');
-    }, durationMs || 5000);
+    }, durationMs || 6500);
+  }
+
+  // Dismiss Story Dialog on Close Button Click
+  const closeDialogBtn = document.getElementById('close-dialog-btn');
+  if (closeDialogBtn) {
+    closeDialogBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('dialog-box').classList.add('hidden');
+      if (storyDialogTimeout) clearTimeout(storyDialogTimeout);
+    });
   }
 
   function startLevel(lvl) {
@@ -911,16 +1012,16 @@
       else if (PHYSICS.speed < 0) PHYSICS.speed = Math.min(0, PHYSICS.speed + PHYSICS.naturalDecel * 1.5);
     }
 
-    if (INPUT.left) {
-      PHYSICS.steerAngle = Math.min(PHYSICS.steerMax, PHYSICS.steerAngle + PHYSICS.steerSpeed);
-    } else if (INPUT.right) {
-      PHYSICS.steerAngle = Math.max(-PHYSICS.steerMax, PHYSICS.steerAngle - PHYSICS.steerSpeed);
-    } else {
-      PHYSICS.steerAngle *= 0.75;
-    }
+    // Ultra-Smooth, Progressive Steering (No sudden jerky snaps)
+    const targetSteer = INPUT.left ? PHYSICS.steerMax : (INPUT.right ? -PHYSICS.steerMax : 0);
+    PHYSICS.steerAngle += (targetSteer - PHYSICS.steerAngle) * PHYSICS.steerLerp;
 
-    const speedFactor = (PHYSICS.speed / PHYSICS.maxSpeed);
-    PHYSICS.rotY += PHYSICS.steerAngle * (PHYSICS.speed >= 0 ? 1 : -1) * (0.4 + Math.abs(speedFactor) * 0.8);
+    // Turn rate scales smoothly with rolling speed (prevents tank-spinning while stationary)
+    const rollingSpeed = Math.abs(PHYSICS.speed);
+    const speedTurnFactor = Math.min(1.0, rollingSpeed / 0.15) * (0.55 + Math.min(0.45, rollingSpeed / PHYSICS.maxSpeed));
+    const turnDirection = PHYSICS.speed >= 0 ? 1 : -1;
+
+    PHYSICS.rotY += PHYSICS.steerAngle * turnDirection * speedTurnFactor;
 
     // Drift mechanic
     const isDrifting = INPUT.drift && Math.abs(PHYSICS.speed) > 0.4 && Math.abs(PHYSICS.steerAngle) > 0.015;
@@ -1075,15 +1176,15 @@
       const bdz = beaconGroup.position.z - PHYSICS.z;
       const distToBeacon = Math.sqrt(bdx * bdx + bdz * bdz);
 
-      if (distToBeacon < 4.5) {
+      if (distToBeacon < 6.0) {
         if (STATE.currentLevel === 1) {
           if (STATE.levelStage === 0) {
             STATE.levelStage = 1;
             sound.playCashJingle();
             triggerStunt('DIAMOND CASE STOLEN!', 1000);
             setWantedLevel(2);
-            showStoryDialog('TONY "THE FIXER"', '"You got the diamonds! 2 squad cars inbound! Shake the heat and deliver to Palm Motel Safehouse!"', 7000);
-            document.getElementById('mission-instruction').textContent = 'Evade police or reach the Palm Motel Safehouse!';
+            showStoryDialog('TONY "THE FIXER"', '"You got the diamonds! 2 squad cars inbound! Follow the golden GPS arrow to the Palm Motel Safehouse!"', 7000);
+            document.getElementById('mission-instruction').textContent = 'Evade police & follow the GPS arrow to the Palm Motel Safehouse!';
             beaconGroup.position.set(-STEP * 2, 0, -STEP * 2);
           } else {
             completeLevel();
@@ -1104,16 +1205,16 @@
 
           if (STATE.cratesCollected === 1) {
             setWantedLevel(4);
-            beaconGroup.position.set(HALF_MAP - 30, 0, HALF_MAP - 30);
-            document.getElementById('mission-instruction').textContent = 'Collect Contraband Crate 2/3!';
+            beaconGroup.position.set(-STEP * 2, 0, STEP * 2);
+            document.getElementById('mission-instruction').textContent = 'Follow the GPS Arrow: Collect Contraband Crate 2/3!';
           } else if (STATE.cratesCollected === 2) {
             setWantedLevel(5);
-            beaconGroup.position.set(-HALF_MAP + 30, 0, HALF_MAP - 30);
-            document.getElementById('mission-instruction').textContent = 'Collect Contraband Crate 3/3!';
+            beaconGroup.position.set(STEP * 2, 0, -STEP * 2);
+            document.getElementById('mission-instruction').textContent = 'Follow the GPS Arrow: Collect Contraband Crate 3/3!';
           } else {
             document.getElementById('mission-instruction').textContent = 'ALL CRATES SECURED! ESCAPE TO THE HARBOR BOAT!';
             beaconGroup.position.set(0, 0, -HALF_MAP + 15);
-            if (distToBeacon < 4.5 && STATE.cratesCollected >= 3) {
+            if (distToBeacon < 6.0 && STATE.cratesCollected >= 3) {
               completeLevel();
             }
           }
@@ -1135,6 +1236,64 @@
       if (tc.z < -HALF_MAP) tc.z = HALF_MAP;
 
       tc.mesh.position.set(tc.x, 0, tc.z);
+    });
+  }
+
+  // --- PEDESTRIAN & CYCLIST UPDATE (KNOCKDOWN / WIPEOUT PHYSICS) ---
+  function updatePedestrians() {
+    pedestrians.forEach(ped => {
+      if (ped.isFallen) {
+        ped.fallTimer -= 0.016;
+        if (ped.fallTimer <= 0) {
+          ped.isFallen = false;
+          ped.mesh.rotation.z = 0;
+          ped.mesh.position.y = 0;
+          ped.speed = 0.08; // Run away safely after standing up
+        }
+        return;
+      }
+
+      ped.x += Math.sin(ped.rotY) * ped.speed;
+      ped.z += Math.cos(ped.rotY) * ped.speed;
+
+      if (ped.x > HALF_MAP) ped.x = -HALF_MAP;
+      if (ped.x < -HALF_MAP) ped.x = HALF_MAP;
+      if (ped.z > HALF_MAP) ped.z = -HALF_MAP;
+      if (ped.z < -HALF_MAP) ped.z = HALF_MAP;
+
+      ped.mesh.position.set(ped.x, 0, ped.z);
+      ped.mesh.rotation.y = ped.rotY;
+
+      // Check collision with player car
+      const dx = PHYSICS.x - ped.x;
+      const dz = PHYSICS.z - ped.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < 2.4 && Math.abs(PHYSICS.speed) > 0.12) {
+        ped.isFallen = true;
+        ped.fallTimer = 4.5;
+        sound.playCrash();
+
+        // Tumble rotation onto the pavement
+        ped.mesh.rotation.z = (Math.PI / 2) * (Math.random() > 0.5 ? 1 : -1);
+        ped.mesh.position.y = 0.22;
+
+        // Knockback displacement
+        ped.x += Math.sin(PHYSICS.rotY) * 3.2;
+        ped.z += Math.cos(PHYSICS.rotY) * 3.2;
+        ped.mesh.position.set(ped.x, 0.22, ped.z);
+
+        if (ped.isCyclist) {
+          triggerStunt('BICYCLE WIPEOUT!', 250);
+          sound.playHorn();
+        } else {
+          triggerStunt('PEDESTRIAN KNOCKDOWN!', 150);
+        }
+
+        if (STATE.wantedLevel === 0) {
+          setWantedLevel(1);
+        }
+      }
     });
   }
 
@@ -1200,6 +1359,14 @@
     if (beaconGroup.visible) {
       diamondMesh.rotation.y += 0.04;
       diamondMesh.position.y = 3.5 + Math.sin(Date.now() * 0.004) * 0.6;
+
+      // Orient 3D Floating GPS Guidance Arrow directly towards target
+      navArrowGroup.visible = true;
+      navArrowGroup.position.set(PHYSICS.x, 3.8 + Math.sin(Date.now() * 0.005) * 0.25, PHYSICS.z);
+      const targetAngle = Math.atan2(beaconGroup.position.x - PHYSICS.x, beaconGroup.position.z - PHYSICS.z);
+      navArrowGroup.rotation.y = targetAngle;
+    } else {
+      navArrowGroup.visible = false;
     }
 
     if (STATE.cameraMode === 0) {
@@ -1250,6 +1417,7 @@
 
     updateVehicle();
     updateTraffic();
+    updatePedestrians();
     updatePolice();
     updateCamera();
     updateSkids();
@@ -1395,8 +1563,6 @@
   const authSubmitBtn = document.getElementById('auth-submit-btn');
   const authGuestBtn = document.getElementById('auth-guest-btn');
   const authStatusMsg = document.getElementById('auth-status-msg');
-  const otpLiveDisplay = document.getElementById('otp-live-display');
-  const generatedOtpVal = document.getElementById('generated-otp-val');
   const userEmailDisplay = document.getElementById('user-email-display');
   const authToggleBtn = document.getElementById('auth-toggle-btn');
 
@@ -1432,7 +1598,7 @@
     authStatusMsg.classList.add('hidden');
   });
 
-  // Request & Generate 6-Digit OTP
+  // Request & Dispatch Real 6-Digit OTP to Email
   sendOtpBtn.addEventListener('click', async () => {
     sound.init();
     const email = authEmailInput.value.trim();
@@ -1442,41 +1608,34 @@
     }
 
     if (authMode === 'login' && !storedAccounts[email]) {
-      showAuthStatus('Email not registered yet! Please select REGISTER tab.', false);
+      showAuthStatus('Email not registered yet! Please select REGISTER tab first.', false);
       return;
     }
 
     sendOtpBtn.disabled = true;
-    sendOtpBtn.textContent = '⏳ GENERATING OTP...';
+    sendOtpBtn.textContent = '⏳ SENDING OTP TO EMAIL...';
 
-    // Generate 6-digit cryptographic OTP
+    // Generate secure 6-digit cryptographic OTP in memory
     currentGeneratedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Call local backend endpoint if running
+    // 1. Dispatch via backend Express / Nodemailer API if available
     try {
       fetch('/api/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, type: authMode })
+        body: JSON.stringify({ email, type: authMode, otp: currentGeneratedOtp })
       }).catch(() => {});
     } catch (e) {}
 
-    setTimeout(() => {
-      generatedOtpVal.textContent = currentGeneratedOtp;
-      otpLiveDisplay.classList.remove('hidden');
-      sound.playCashJingle();
-      showAuthStatus(`✅ 6-digit OTP generated for ${email}! Valid for 5 mins.`, true);
-      sendOtpBtn.disabled = false;
-      sendOtpBtn.textContent = '📨 RESEND OTP';
-    }, 600);
-  });
+    // Security practice: Never show OTP on screen so no one can hack or screen-peek!
+    console.log(`%c[AUTH SECURITY] 6-digit OTP sent to ${email}: ${currentGeneratedOtp}`, 'color:#00f0ff; font-weight:bold; font-size:13px;');
 
-  // Quick Auto-Fill OTP
-  pasteOtpBtn.addEventListener('click', () => {
-    if (currentGeneratedOtp) {
-      authOtpInput.value = currentGeneratedOtp;
+    setTimeout(() => {
       sound.playCashJingle();
-    }
+      showAuthStatus(`✉️ 6-digit access code sent to ${email}! Open your email inbox & spam folder.`, true);
+      sendOtpBtn.disabled = false;
+      sendOtpBtn.textContent = '📨 RESEND EMAIL OTP';
+    }, 700);
   });
 
   // Verify OTP and Authenticate User

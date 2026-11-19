@@ -14,6 +14,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,800;0,900;1,900&family=Orbitron:wght@700;900&family=Permanent+Marker&display=swap" rel="stylesheet">
   <!-- Three.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- EmailJS SDK for Real Email OTP Dispatch -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
   <!-- 3D Canvas Container -->
@@ -84,11 +86,14 @@
       </div>
     </div>
 
-    <!-- Incoming Story Phone Call / Boss Dialogue (GTA Style) -->
+    <!-- Incoming Story Phone Call / Boss Dialogue (GTA Style - Compact & Dismissable) -->
     <div id="dialog-box" class="dialog-box hidden">
       <div class="caller-avatar">📞</div>
       <div class="caller-content">
-        <div class="caller-name" id="dialog-caller">TONY "THE FIXER"</div>
+        <div class="caller-header">
+          <span class="caller-name" id="dialog-caller">TONY "THE FIXER"</span>
+          <button id="close-dialog-btn" class="dialog-close-btn" title="Dismiss Message">✕</button>
+        </div>
         <div class="caller-msg" id="dialog-message">"Listen kid, grab the stolen diamonds from the bank alley before the heat arrives!"</div>
       </div>
     </div>
@@ -222,24 +227,20 @@
 
         <!-- OTP Request Button -->
         <div class="otp-request-row">
-          <button id="send-otp-btn" class="modal-btn secondary-btn">📨 SEND 6-DIGIT OTP</button>
+          <button id="send-otp-btn" class="modal-btn secondary-btn">📨 SEND SECURE OTP TO EMAIL</button>
         </div>
 
-        <!-- OTP Input Area -->
+        <!-- Secure OTP Input Area (No auto-fill or on-screen leak) -->
         <div class="input-group" id="otp-group">
-          <label for="auth-otp">ENTER 6-DIGIT OTP</label>
+          <label for="auth-otp">ENTER 6-DIGIT OTP FROM YOUR EMAIL</label>
           <div class="otp-input-wrapper">
-            <input type="text" id="auth-otp" maxlength="6" placeholder="123456">
-            <button id="paste-otp-btn" class="quick-otp-btn">AUTO-FILL</button>
+            <input type="text" id="auth-otp" maxlength="6" placeholder="• • • • • •" autocomplete="one-time-code" required>
           </div>
+          <small class="otp-hint-text">Check your inbox & spam folder for the 6-digit access code.</small>
         </div>
 
-        <!-- Status & Live OTP Notification Box -->
+        <!-- Status Notification Box -->
         <div id="auth-status-msg" class="auth-status hidden"></div>
-        <div id="otp-live-display" class="otp-live-box hidden">
-          <span class="otp-badge">🔐 SECURITY ALERT</span>
-          <p>Your 6-digit verification code is: <b id="generated-otp-val">------</b></p>
-        </div>
 
         <!-- Submit Button -->
         <div class="modal-buttons">
