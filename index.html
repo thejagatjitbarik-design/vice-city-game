@@ -45,6 +45,17 @@
           <div class="bar-track"><div id="armor-bar" class="bar-fill armor"></div></div>
         </div>
       </div>
+
+      <!-- Active Weapon Indicator -->
+      <div class="weapon-hud" id="weapon-hud">
+        <span id="weapon-icon">🔫</span>
+        <div class="weapon-meta">
+          <span id="weapon-name">9MM PISTOL</span>
+          <span id="weapon-ammo">17 / &infin;</span>
+        </div>
+        <button id="switch-weapon-btn" class="weapon-switch-btn" title="Switch Weapon [TAB]">⇄</button>
+      </div>
+
       <!-- User Profile Badge & Logout -->
       <div id="user-badge" class="user-badge">
         <span id="user-avatar-icon" class="user-icon">🕶️</span>
@@ -58,11 +69,14 @@
       <div class="game-logo">VICE OUTLAWS</div>
       <div class="district-name" id="district-text">OCEAN DRIVE</div>
       <div class="hud-buttons-row">
-        <button id="radio-btn" class="hud-btn">📻 RADIO: <span id="radio-status">SYNTHWAVE FM</span></button>
+        <button id="map-btn" class="hud-btn">🗺️ MAP [M]</button>
+        <button id="phone-btn" class="hud-btn">📱 PHONE [P]</button>
+        <button id="vehicle-mode-btn" class="hud-btn">🚶 FOOT [F]</button>
+        <button id="radio-btn" class="hud-btn">📻 RADIO</button>
         <button id="cam-btn" class="hud-btn">🎥 CAM [C]</button>
-        <button id="reset-btn" class="hud-btn">🔄 UNSTUCK [R]</button>
-        <button id="settings-btn" class="hud-btn">⚙️ SETTINGS</button>
-        <button id="admin-btn" class="hud-btn gold-text">👑 ADMIN</button>
+        <button id="reset-btn" class="hud-btn">🔄 RESET [R]</button>
+        <button id="settings-btn" class="hud-btn">⚙️ PROFILE</button>
+        <a href="admin.html" target="_blank" class="hud-btn gold-text" style="text-decoration:none;">👑 ADMIN PANEL</a>
       </div>
     </div>
 
@@ -152,13 +166,23 @@
       <div class="gear-display" id="gear-display">1ST</div>
     </div>
 
+    <!-- Contextual World Interaction Prompt -->
+    <div id="interaction-prompt" class="interaction-prompt hidden">
+      <span class="key-pill">F</span> <span id="interaction-text">ENTER VEHICLE</span>
+    </div>
+
+    <!-- Gun Aiming Reticle -->
+    <div id="crosshair" class="crosshair hidden">+</div>
+
     <!-- Instructions Banner for PC (hidden on touch) -->
     <div class="pc-controls-hint" id="pc-hints">
-      <span><b>WASD / ARROWS:</b> Drive</span>
-      <span><b>SPACE:</b> Drift / Handbrake</span>
-      <span><b>C:</b> Camera</span>
-      <span><b>R:</b> Reset Car</span>
-      <span><b>H:</b> Horn</span>
+      <span><b>WASD / ARROWS:</b> Move / Drive</span>
+      <span><b>F:</b> Enter / Exit Car</span>
+      <span><b>M:</b> City Map</span>
+      <span><b>P:</b> Smartphone</span>
+      <span><b>TAB:</b> Switch Weapon</span>
+      <span><b>CLICK:</b> Shoot / Attack</span>
+      <span><b>SPACE:</b> Jump / Drift</span>
     </div>
 
     <!-- Mobile On-Screen Touch Controls -->
@@ -168,13 +192,71 @@
         <button class="t-btn" id="btn-left">◀</button>
         <button class="t-btn" id="btn-right">▶</button>
       </div>
+
+      <!-- Action buttons center-bottom on mobile -->
+      <div class="touch-group touch-actions">
+        <button class="t-btn t-btn-f" id="btn-touch-f">🚗 CAR [F]</button>
+        <button class="t-btn t-btn-fire" id="btn-touch-fire">💥 FIRE</button>
+      </div>
+
       <!-- Pedals on bottom-right -->
       <div class="touch-group touch-right">
-        <button class="t-btn t-brake" id="btn-brake">REVERSE / STOP</button>
-        <button class="t-btn t-handbrake" id="btn-drift">DRIFT</button>
-        <button class="t-btn t-gas" id="btn-gas">DRIVE ▲</button>
+        <button class="t-btn t-brake" id="btn-brake">BRAKE</button>
+        <button class="t-btn t-handbrake" id="btn-drift">JUMP / DRIFT</button>
+        <button class="t-btn t-gas" id="btn-gas">GAS ▲</button>
       </div>
     </div>
+  </div>
+
+  <!-- Full-Screen Interactive City Map Modal -->
+  <div id="map-modal" class="modal hidden">
+    <div class="modal-content map-modal-content">
+      <div class="map-modal-header">
+        <div>
+          <h2>🗺️ VICE CITY REGIONAL MAP</h2>
+          <p>CLICK ANYWHERE TO PLACE A CUSTOM 3D GPS WAYPOINT</p>
+        </div>
+        <button id="close-map-btn" class="dialog-close-btn" style="position:static;">✕</button>
+      </div>
+      <div class="map-viewport-wrapper">
+        <canvas id="fullscreen-map-canvas" width="640" height="460"></canvas>
+      </div>
+      <div class="map-legend">
+        <span>⭐ Heists &amp; Missions</span>
+        <span>🏠 Safehouses</span>
+        <span>🚗 Chop Shops</span>
+        <span>➕ Hospitals</span>
+        <span>📍 Custom GPS Pin</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTA-Style In-Game Smartphone Device -->
+  <div id="phone-device" class="phone-device hidden">
+    <div class="phone-notch">
+      <span class="phone-time" id="phone-clock">21:00</span>
+      <span class="phone-icons">📶 🔋 100%</span>
+    </div>
+    <div class="phone-screen">
+      <div class="phone-wallpaper">
+        <div class="phone-app-grid" id="phone-app-grid">
+          <button class="phone-app" data-app="contacts"><span class="app-icon">📞</span><span class="app-name">Contacts</span></button>
+          <button class="phone-app" data-app="messages"><span class="app-icon">💬</span><span class="app-name">Texts</span></button>
+          <button class="phone-app" data-app="bank"><span class="app-icon">🏦</span><span class="app-name">UnderBank</span></button>
+          <button class="phone-app" data-app="missions"><span class="app-icon">📋</span><span class="app-name">Chapters</span></button>
+          <button class="phone-app" data-app="gps"><span class="app-icon">🧭</span><span class="app-name">GPS Route</span></button>
+          <button class="phone-app" data-app="settings"><span class="app-icon">⚙️</span><span class="app-name">Settings</span></button>
+        </div>
+        <div class="phone-view-container hidden" id="phone-view-container">
+          <div class="phone-view-header">
+            <button id="phone-back-btn">&larr; BACK</button>
+            <span id="phone-view-title">APP</span>
+          </div>
+          <div class="phone-view-body" id="phone-view-body"></div>
+        </div>
+      </div>
+    </div>
+    <button id="phone-home-btn" class="phone-home-bar" title="Dismiss Phone"></button>
   </div>
 
   <!-- Customization & Garage Modal -->

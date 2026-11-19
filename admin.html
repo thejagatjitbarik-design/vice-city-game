@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VICE OUTLAWS // Master Admin Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+
+  <!-- ADMIN LOGIN GATE MODAL (If unauthenticated) -->
+  <div id="admin-auth-overlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="logo-shield">🛡️</span>
+        <h2>VICE OUTLAWS</h2>
+        <p>MASTER COMMAND &amp; CONTROL</p>
+      </div>
+      <div class="auth-notice">
+        RESTRICTED SECTOR &bull; AUTHORIZED ADMINISTRATORS ONLY
+      </div>
+      <form id="admin-login-form">
+        <div class="form-group">
+          <label>SECURITY PASSCODE</label>
+          <input type="password" id="gate-passcode" placeholder="Enter master passcode (admin777)..." autocomplete="off" autofocus required>
+        </div>
+        <div id="gate-error" class="gate-error hidden">⛔ ACCESS DENIED: Invalid Passcode</div>
+        <button type="submit" class="btn-neon-gold">VERIFY CREDENTIALS &amp; ENTER</button>
+      </form>
+      <div class="auth-hint">
+        <span>Default Developer Passcode: <b>admin777</b></span>
+        <a href="index.html" class="back-to-game">&larr; Return to Game</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD WRAPPER -->
+  <div class="admin-layout" id="admin-layout">
+    
+    <!-- LEFT SIDEBAR: 29 NAVIGATION MODULES -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge">⚡ VC</div>
+        <div class="brand-text">
+          <span class="brand-title">VICE OUTLAWS</span>
+          <span class="brand-sub">COMMAND CORE v1.5</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <div class="nav-group-title">MAIN OPERATIONS</div>
+        <button class="nav-item active" data-target="sec-dashboard"><span class="nav-icon">📊</span> Dashboard</button>
+        <button class="nav-item" data-target="sec-players"><span class="nav-icon">👥</span> Player Management</button>
+        <button class="nav-item" data-target="sec-live"><span class="nav-icon">📡</span> Live Monitoring</button>
+        <button class="nav-item" data-target="sec-world"><span class="nav-icon">🏙️</span> Game World</button>
+
+        <div class="nav-group-title">CONTENT &amp; GAMEPLAY</div>
+        <button class="nav-item" data-target="sec-missions"><span class="nav-icon">🎯</span> Missions &amp; Chapters</button>
+        <button class="nav-item" data-target="sec-npcs"><span class="nav-icon">🚶</span> NPC &amp; Characters</button>
+        <button class="nav-item" data-target="sec-vehicles"><span class="nav-icon">🏎️</span> Vehicles &amp; Physics</button>
+        <button class="nav-item" data-target="sec-economy"><span class="nav-icon">💰</span> Economy &amp; Finance</button>
+        <button class="nav-item" data-target="sec-properties"><span class="nav-icon">🏠</span> Properties &amp; Safehouses</button>
+        <button class="nav-item" data-target="sec-businesses"><span class="nav-icon">🏢</span> Business Empire</button>
+        <button class="nav-item" data-target="sec-weapons"><span class="nav-icon">🔫</span> Weapons &amp; Inventory</button>
+        <button class="nav-item" data-target="sec-police"><span class="nav-icon">🚨</span> Police &amp; Wanted</button>
+
+        <div class="nav-group-title">SIMULATION &amp; WORLD</div>
+        <button class="nav-item" data-target="sec-weather"><span class="nav-icon">⛈️</span> Weather &amp; Day-Night</button>
+        <button class="nav-item" data-target="sec-events"><span class="nav-icon">🏆</span> Events &amp; Tournaments</button>
+        <button class="nav-item" data-target="sec-content"><span class="nav-icon">🛍️</span> Content &amp; Customization</button>
+        <button class="nav-item" data-target="sec-map"><span class="nav-icon">🗺️</span> Map &amp; GPS Markers</button>
+
+        <div class="nav-group-title">MODERATION &amp; COMMUNITY</div>
+        <button class="nav-item" data-target="sec-reports"><span class="nav-icon">⚖️</span> Player Reports</button>
+        <button class="nav-item" data-target="sec-achievements"><span class="nav-icon">🎖️</span> Achievements</button>
+        <button class="nav-item" data-target="sec-leaderboards"><span class="nav-icon">👑</span> Leaderboards</button>
+        <button class="nav-item" data-target="sec-settings"><span class="nav-icon">⚙️</span> Game Settings &amp; Balance</button>
+
+        <div class="nav-group-title">TECHNICAL &amp; SERVER</div>
+        <button class="nav-item" data-target="sec-server"><span class="nav-icon">🖥️</span> Server Management</button>
+        <button class="nav-item" data-target="sec-analytics"><span class="nav-icon">📈</span> Game Analytics</button>
+        <button class="nav-item" data-target="sec-bugs"><span class="nav-icon">🐛</span> Bug Tracking</button>
+        <button class="nav-item" data-target="sec-notifications"><span class="nav-icon">📨</span> Notifications &amp; Email Log</button>
+        <button class="nav-item" data-target="sec-admins"><span class="nav-icon">🔐</span> Administrators &amp; Roles</button>
+        <button class="nav-item" data-target="sec-audit"><span class="nav-icon">📜</span> Audit Logs</button>
+        <button class="nav-item" data-target="sec-backup"><span class="nav-icon">💾</span> Backup &amp; Recovery</button>
+        <button class="nav-item" data-target="sec-profile"><span class="nav-icon">👤</span> Admin Profile</button>
+        <button class="nav-item nav-logout" id="sidebar-logout-btn"><span class="nav-icon">🚪</span> Logout</button>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="admin-main">
+      <!-- TOP HEADER BAR -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button id="toggle-sidebar-btn" class="icon-btn">☰</button>
+          <div class="breadcrumb" id="topbar-breadcrumb">
+            <span>COMMAND CORE</span> &rsaquo; <b id="current-section-name">DASHBOARD</b>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Quick Weather Sync Pills -->
+          <div class="quick-weather-group">
+            <span class="quick-label">WORLD SYNC:</span>
+            <button class="weather-pill" data-weather="sunny">☀️ NOON</button>
+            <button class="weather-pill" data-weather="sunset">🌅 SUNSET</button>
+            <button class="weather-pill active" data-weather="thunderstorm">⚡ STORM</button>
+            <button class="weather-pill" data-weather="night">🌙 MIDNIGHT</button>
+          </div>
+
+          <!-- Server Health Pill -->
+          <div class="server-pill">
+            <span class="live-dot"></span>
+            <span>SERVER: <b>OPTIMAL</b></span>
+          </div>
+
+          <!-- Launch Game Button -->
+          <a href="index.html" class="btn-pill-cyan" target="_blank">🎮 PLAY GAME</a>
+
+          <!-- Notification Bell -->
+          <button id="topbar-bell-btn" class="icon-btn" title="View Notifications">
+            🔔<span class="bell-badge">3</span>
+          </button>
+
+          <!-- Admin Avatar & Menu -->
+          <div class="admin-user-pill">
+            <span class="admin-avatar">👑</span>
+            <div class="admin-meta">
+              <span class="admin-name">COMMANDER</span>
+              <span class="admin-role">SUPER ADMIN</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- TAB CONTENT PANELS (29 SECTIONS) -->
+      <div class="admin-content-container">
+
+        <!-- 1. DASHBOARD OVERVIEW -->
+        <section id="sec-dashboard" class="content-panel active">
+          <div class="panel-header">
+            <div>
+              <h2>EXECUTIVE COMMAND OVERVIEW</h2>
+              <p>Real-time telemetry, server health metrics, and virtual economy statistics.</p>
+            </div>
+            <button class="btn-neon-gold" id="refresh-dashboard-btn">🔄 REFRESH METRICS</button>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon gold-glow">👥</div>
+              <div class="kpi-info">
+                <span class="kpi-label">TOTAL REGISTERED PLAYERS</span>
+                <span class="kpi-value" id="kpi-players">1,428</span>
+                <span class="kpi-trend positive">&uarr; +14 today</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-icon cyan-glow">📡</div>
+              <div class="kpi-info">
+                <span class="kpi-label">PLAYERS ONLINE NOW</span>
+                <span class="kpi-value" id="kpi-online">34</span>
+                <span class="kpi-trend positive">&bull; Active Sessions</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-icon purple-glow">💰</div>
+              <div class="kpi-info">
+                <span class="kpi-label">CURRENCY IN CIRCULATION</span>
+                <span class="kpi-value" id="kpi-currency">$2,845,000</span>
+                <span class="kpi-trend positive">Underworld Treasury</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-icon red-glow">🎯</div>
+              <div class="kpi-info">
+                <span class="kpi-label">MISSIONS COMPLETED</span>
+                <span class="kpi-value" id="kpi-missions">684</span>
+                <span class="kpi-trend positive">7 Story Chapters</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">📈 PLAYER REGISTRATION &amp; RETENTION (LAST 7 DAYS)</div>
+              <div class="chart-container">
+                <svg viewBox="0 0 500 180" class="svg-chart">
+                  <polyline fill="none" stroke="#00f0ff" stroke-width="3" points="0,150 70,120 140,130 210,80 280,95 350,40 420,55 500,20" />
+                  <circle cx="500" cy="20" r="5" fill="#00f0ff" />
+                  <polyline fill="rgba(0, 240, 255, 0.1)" stroke="none" points="0,150 70,120 140,130 210,80 280,95 350,40 420,55 500,20 500,180 0,180" />
+                  <text x="70" y="170" fill="#666" font-size="10">MON</text>
+                  <text x="140" y="170" fill="#666" font-size="10">TUE</text>
+                  <text x="210" y="170" fill="#666" font-size="10">WED</text>
+                  <text x="280" y="170" fill="#666" font-size="10">THU</text>
+                  <text x="350" y="170" fill="#666" font-size="10">FRI</text>
+                  <text x="420" y="170" fill="#666" font-size="10">SAT</text>
+                  <text x="480" y="170" fill="#00f0ff" font-size="10">TODAY</text>
+                </svg>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">🏙️ DISTRICT ACTIVITY HEATMAP</div>
+              <div class="district-bars">
+                <div class="bar-row"><span>Ocean Beach Strip</span><div class="bar-wrap"><div class="bar-fill" style="width:88%;"></div></div><b>88%</b></div>
+                <div class="bar-row"><span>Downtown Financial</span><div class="bar-wrap"><div class="bar-fill" style="width:72%;"></div></div><b>72%</b></div>
+                <div class="bar-row"><span>Marina Harbor Docks</span><div class="bar-wrap"><div class="bar-fill" style="width:58%;"></div></div><b>58%</b></div>
+                <div class="bar-row"><span>Starfish Island Mansions</span><div class="bar-wrap"><div class="bar-fill" style="width:44%;"></div></div><b>44%</b></div>
+                <div class="bar-row"><span>Vice Airport Runways</span><div class="bar-wrap"><div class="bar-fill" style="width:31%;"></div></div><b>31%</b></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Activity Feed -->
+          <div class="panel-card" style="margin-top:16px;">
+            <div class="card-title">⚡ REAL-TIME UNDERWORLD ACTIVITY FEED</div>
+            <div class="activity-feed" id="live-activity-feed">
+              <div class="feed-item"><span class="feed-time">Just now</span><span class="feed-tag tag-green">MISSION</span> Outlaw <b>Viper</b> neutralized the Cartel Traitor in Chapter 3 Thunderstorm! (+$18,000)</div>
+              <div class="feed-item"><span class="feed-time">2m ago</span><span class="feed-tag tag-blue">POLICE</span> 3-star pursuit initiated in Downtown Commercial District against stolen Infernus GT.</div>
+              <div class="feed-item"><span class="feed-time">5m ago</span><span class="feed-tag tag-gold">REALTY</span> Player <b>Tommy_Outlaw</b> purchased Ocean Beach Loft Safehouse for $25,000.</div>
+              <div class="feed-item"><span class="feed-time">8m ago</span><span class="feed-tag tag-purple">AUTH</span> New user registered via Email OTP verification.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. PLAYER MANAGEMENT -->
+        <section id="sec-players" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>PLAYER DIRECTORY &amp; ACCOUNT MANAGEMENT</h2>
+              <p>Inspect registered outlaws, manage bans, grant cash adjustments, and review warnings.</p>
+            </div>
+            <div class="header-actions">
+              <input type="text" id="player-search-input" class="search-field" placeholder="Search by email or name...">
+              <select id="player-filter-status" class="select-field">
+                <option value="ALL">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="banned">Banned</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table" id="players-table">
+                <thead>
+                  <tr>
+                    <th>AVATAR / NAME</th>
+                    <th>EMAIL ADDRESS</th>
+                    <th>CASH BALANCE</th>
+                    <th>LEVEL</th>
+                    <th>MISSIONS</th>
+                    <th>STATUS</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="players-table-body">
+                  <!-- Injected via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. LIVE MONITORING -->
+        <section id="sec-live" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>LIVE PLAYER RADAR &amp; TELEMETRY</h2>
+              <p>Real-time GPS tracking of active outlaws currently driving the streets of Vice City.</p>
+            </div>
+            <button class="btn-pill-cyan" id="ping-radar-btn">📡 SCAN STREETS</button>
+          </div>
+
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">CITY RADAR TRACKER</div>
+              <div class="live-radar-box">
+                <canvas id="admin-city-radar" width="340" height="340"></canvas>
+                <div class="radar-hud-overlay">
+                  <span>SCALE: 1:1 VICE GRID</span>
+                  <span id="active-radar-count">3 PLAYERS TRACKED</span>
+                </div>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">CONNECTED SESSION ROSTER</div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr><th>PLAYER</th><th>DISTRICT</th><th>SPEED</th><th>WANTED</th><th>LATENCY</th></tr>
+                  </thead>
+                  <tbody id="live-sessions-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. GAME WORLD -->
+        <section id="sec-world" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>GAME WORLD &amp; DISTRICT MANAGEMENT</h2>
+              <p>Configure the 14 city zones, restricted boundaries, and landmark coordinates.</p>
+            </div>
+          </div>
+          <div class="grid-3col" id="districts-grid">
+            <!-- Populated dynamically with 14 districts -->
+          </div>
+        </section>
+
+        <!-- 5. MISSIONS & CHAPTERS -->
+        <section id="sec-missions" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>STORY CAMPAIGN &amp; MISSION REPOSITORY</h2>
+              <p>Configure all 7 chapters of the thriller storyline, rewards, and objectives.</p>
+            </div>
+          </div>
+          <div class="mission-cards-list" id="missions-list">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 6. NPC & CHARACTERS -->
+        <section id="sec-npcs" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>NPC ARTIFICIAL INTELLIGENCE &amp; ROLES</h2>
+              <p>Manage civilian pedestrians, cyclists, police squadrons, and story contacts.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">STORY CONTACTS &amp; DIALOGUES</div>
+              <div class="contacts-roster">
+                <div class="contact-card">
+                  <span class="contact-avatar">📞</span>
+                  <div><b>Tony "The Fixer"</b><br><small>Main Syndicate Handler &bull; Ocean Drive</small></div>
+                </div>
+                <div class="contact-card">
+                  <span class="contact-avatar">🏎️</span>
+                  <div><b>Benny "Chop Shop"</b><br><small>Underworld Mechanic &bull; Industrial Docks</small></div>
+                </div>
+                <div class="contact-card">
+                  <span class="contact-avatar">🕵️</span>
+                  <div><b>Detective Vance</b><br><small>Corrupt Police Insider &bull; Vice Police HQ</small></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">CIVILIAN POPULATION PARAMETERS</div>
+              <div class="settings-slider-row">
+                <label>Pedestrian Spawn Density: <b id="lbl-ped-density">100%</b></label>
+                <input type="range" id="slider-ped-density" min="20" max="200" value="100">
+              </div>
+              <div class="settings-slider-row">
+                <label>Bicycle &amp; Cyclist Frequency: <b>35%</b></label>
+                <input type="range" min="10" max="80" value="35">
+              </div>
+              <div class="settings-slider-row">
+                <label>Pedestrian Ragdoll Knockdown Recovery: <b>4.5s</b></label>
+                <input type="range" min="2" max="10" value="4">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. VEHICLES & PHYSICS -->
+        <section id="sec-vehicles" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>VEHICLE FLEET &amp; HANDLING SPECIFICATIONS</h2>
+              <p>Tune top speeds, drift multipliers, acceleration, and dealership catalog pricing.</p>
+            </div>
+          </div>
+          <div class="grid-3col" id="vehicles-catalog-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 8. ECONOMY & FINANCE -->
+        <section id="sec-economy" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>VIRTUAL ECONOMY &amp; TREASURY CONTROLLER</h2>
+              <p>Monitor currency velocity, inflation rates, and configure universal payout multipliers.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">REWARD MULTIPLIERS</div>
+              <div class="settings-slider-row">
+                <label>Mission Payout Multiplier: <b id="lbl-mission-mult">1.0x</b></label>
+                <input type="range" id="slider-mission-mult" min="0.5" max="3.0" step="0.1" value="1.0">
+              </div>
+              <div class="settings-slider-row">
+                <label>Stunt Drift Bonus Multiplier: <b>1.0x</b></label>
+                <input type="range" min="0.5" max="5.0" step="0.5" value="1.0">
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">RECENT TREASURY TRANSACTIONS</div>
+              <div class="transaction-log" id="economy-trans-log">
+                <div class="trans-row"><span>Chapter 3 Reward Payout</span><b class="text-green">+$18,000</b></div>
+                <div class="trans-row"><span>Custom Paint &amp; Neon Mod</span><b class="text-red">-$3,500</b></div>
+                <div class="trans-row"><span>Stunt Drift Rewards</span><b class="text-green">+$750</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 9. PROPERTIES & SAFEHOUSES -->
+        <section id="sec-properties" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>PROPERTIES &amp; UNDERWORLD SAFEHOUSE REGISTRY</h2>
+              <p>Manage apartments, luxury penthouses, safehouses, and garage capacities.</p>
+            </div>
+          </div>
+          <div class="grid-3col" id="properties-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 10. BUSINESS EMPIRE -->
+        <section id="sec-businesses" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>COMMERCIAL ENTERPRISES &amp; PASSIVE INCOME</h2>
+              <p>Manage purchasable businesses, revenue intervals, and protection missions.</p>
+            </div>
+          </div>
+          <div class="grid-3col" id="businesses-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 11. WEAPONS & INVENTORY -->
+        <section id="sec-weapons" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>ARSENAL &amp; INVENTORY SPECIFICATIONS</h2>
+              <p>Configure weapon damage, fire rates, ammunition reserves, and Ammu-Nation costs.</p>
+            </div>
+          </div>
+          <div class="grid-3col" id="weapons-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 12. POLICE & WANTED SYSTEM -->
+        <section id="sec-police" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>VICE POLICE DEPARTMENT &amp; WANTED ESCALATION</h2>
+              <p>Fine-tune pursuit AI aggression, patrol response thresholds, and roadblock rules.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">WANTED LEVEL THRESHOLDS</div>
+              <div class="police-star-row"><span>★ 1 Star: Local Patrol</span><small>Minor traffic collision or speeding</small></div>
+              <div class="police-star-row"><span>★★ 2 Stars: Squad Pursuit</span><small>Heist or assault on officers</small></div>
+              <div class="police-star-row"><span>★★★ 3 Stars: Roadblocks</span><small>Multiple collisions and sustained heat</small></div>
+              <div class="police-star-row"><span>★★★★ 4 Stars: Tactical SWAT</span><small>High-speed cartel contraband transport</small></div>
+              <div class="police-star-row"><span>★★★★★ 5 Stars: Army Lockdown</span><small>Citywide military curfew and tanks</small></div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">PURSUIT AI PARAMETERS</div>
+              <div class="settings-slider-row">
+                <label>Police Interceptor Top Speed: <b>85 MPH</b></label>
+                <input type="range" min="50" max="120" value="85">
+              </div>
+              <div class="settings-slider-row">
+                <label>Cooldown Evade Duration: <b>7.0s</b></label>
+                <input type="range" min="3" max="15" value="7">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 13. WEATHER & DAY-NIGHT -->
+        <section id="sec-weather" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>DYNAMIC WEATHER &amp; CELESTIAL CONTROLLER</h2>
+              <p>Live-sync atmospheric conditions and clock time with all connected game clients.</p>
+            </div>
+            <button class="btn-neon-gold" id="apply-weather-btn">APPLY TO LIVE WORLD</button>
+          </div>
+
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">PRESET WEATHER CONDITIONS</div>
+              <div class="weather-btn-grid">
+                <button class="w-btn active" data-w="thunderstorm">⚡ Heavy Thunderstorm &amp; Rain</button>
+                <button class="w-btn" data-w="sunset">🌅 Synthwave 80s Sunset</button>
+                <button class="w-btn" data-w="sunny">☀️ Tropical Midday Sun</button>
+                <button class="w-btn" data-w="night">🌙 Neon Midnight</button>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">TIME OF DAY SLIDER</div>
+              <div class="time-clock-display" id="time-clock-label">21:00 (NIGHT)</div>
+              <input type="range" id="time-slider" min="0" max="23" value="21" class="custom-slider">
+              <div class="slider-ticks">
+                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 14. EVENTS & TOURNAMENTS -->
+        <section id="sec-events" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>SPECIAL EVENTS &amp; TOURNAMENTS</h2>
+              <p>Schedule seasonal drift competitions, double cash weekends, and cartel showdowns.</p>
+            </div>
+          </div>
+          <div class="grid-3col">
+            <div class="panel-card">
+              <span class="badge-status status-active">ACTIVE NOW</span>
+              <h3>Neon Highway Drag Cup</h3>
+              <p>Timed high-speed drag racing across the Ocean Drive strip.</p>
+              <div class="event-reward">REWARD: $25,000 CASH</div>
+            </div>
+            <div class="panel-card">
+              <span class="badge-status">SCHEDULED</span>
+              <h3>Double Cash Underworld Weekend</h3>
+              <p>All mission and heist payouts multiplied by 2x.</p>
+              <div class="event-reward">BOOST: +100% REWARDS</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 15. CONTENT & CUSTOMIZATION -->
+        <section id="sec-content" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>CHARACTER &amp; VEHICLE COSMETICS REPOSITORY</h2>
+              <p>Manage clothing sets, sunglasses, avatars, vehicle paints, and neon kits.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">PLAYER AVATARS (OUTLAW PROFILES)</div>
+              <div class="avatar-manager-grid">
+                <div class="avatar-box">🕶️ <span>Viper</span></div>
+                <div class="avatar-box">🏎️ <span>Racer</span></div>
+                <div class="avatar-box">👑 <span>Boss</span></div>
+                <div class="avatar-box">💀 <span>Skull</span></div>
+                <div class="avatar-box">🕵️ <span>Detective</span></div>
+                <div class="avatar-box">🌴 <span>Vice Native</span></div>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">NEON UNDERGLOW PALETTE</div>
+              <div class="swatches-preview">
+                <span class="swatch-bubble" style="background:#00f0ff;">Cyan</span>
+                <span class="swatch-bubble" style="background:#ff007f;">Magenta</span>
+                <span class="swatch-bubble" style="background:#ffd700;">Gold</span>
+                <span class="swatch-bubble" style="background:#39ff14;">Acid Green</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 16. MAP & GPS MARKERS -->
+        <section id="sec-map" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>MINIMAP &amp; GPS ROUTE CONFIGURATION</h2>
+              <p>Inspect coordinate waypoints, navigation light pillars, and radar scaling.</p>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>POI NAME</th><th>DISTRICT</th><th>X COORD</th><th>Z COORD</th><th>ICON</th></tr></thead>
+                <tbody>
+                  <tr><td>Ocean Bank Vault</td><td>Downtown</td><td>120</td><td>120</td><td>⭐ Mission</td></tr>
+                  <tr><td>Palm Motel Safehouse</td><td>Ocean Drive</td><td>-240</td><td>-240</td><td>🏠 Safehouse</td></tr>
+                  <tr><td>Marina Docks Defusal</td><td>Marina</td><td>120</td><td>240</td><td>💣 Bomb Target</td></tr>
+                  <tr><td>Harbor Escape Yacht</td><td>Harbor</td><td>0</td><td>-585</td><td>🚤 Boat Evac</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 17. PLAYER REPORTS -->
+        <section id="sec-reports" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>PLAYER COMPLAINTS &amp; MODERATION TICKETS</h2>
+              <p>Review player misconduct tickets, exploit investigations, and bug feedback.</p>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>TICKET ID</th><th>CATEGORY</th><th>REPORTER</th><th>DESCRIPTION</th><th>STATUS</th></tr></thead>
+                <tbody>
+                  <tr><td>TIC-401</td><td>Exploit</td><td>GhostRider</td><td>Suspicious drift score inflation in Chapter 2</td><td><span class="badge-status status-banned">REVIEWING</span></td></tr>
+                  <tr><td>TIC-402</td><td>Bug</td><td>Outlaw77</td><td>Car stuck between curb near Ocean Bank</td><td><span class="badge-status status-active">RESOLVED</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 18. ACHIEVEMENTS -->
+        <section id="sec-achievements" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>ACHIEVEMENTS &amp; MILESTONE BADGES</h2>
+              <p>Configure accomplishment trophies and in-game unlock bonuses.</p>
+            </div>
+          </div>
+          <div class="grid-3col">
+            <div class="panel-card"><h3>🥇 First Taste of Crime</h3><p>Complete Chapter 1: The First Score.</p><b>Reward: $5,000</b></div>
+            <div class="panel-card"><h3>💣 Speed Demon</h3><p>Defuse the bomb in Chapter 2 without dropping below 45 MPH.</p><b>Reward: $10,000</b></div>
+            <div class="panel-card"><h3>⚡ Thunderous Ram</h3><p>Wreck the Cartel Traitor's Supercar in Chapter 3.</p><b>Reward: $18,000</b></div>
+          </div>
+        </section>
+
+        <!-- 19. LEADERBOARDS -->
+        <section id="sec-leaderboards" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>GLOBAL OUTLAW LEADERBOARDS</h2>
+              <p>Rankings across Net Worth, Missions Completed, and Police Evasions.</p>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>RANK</th><th>OUTLAW</th><th>NET WORTH</th><th>LEVEL</th><th>SAFEHOUSES</th></tr></thead>
+                <tbody>
+                  <tr><td>👑 1</td><td>Tommy V.</td><td>$125,000</td><td>Level 6</td><td>Starfish Mansion</td></tr>
+                  <tr><td>🥈 2</td><td>Viper</td><td>$45,000</td><td>Level 3</td><td>Ocean Beach Loft</td></tr>
+                  <tr><td>🥉 3</td><td>GhostRider</td><td>$22,500</td><td>Level 2</td><td>Palm Motel Room</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 20. GAME SETTINGS & BALANCE -->
+        <section id="sec-settings" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>GLOBAL GAME ENGINE PARAMETERS &amp; BALANCE</h2>
+              <p>Tune universal driving physics, traffic simulation rates, and collision push-out.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">DRIVING PHYSICS &amp; STEERING</div>
+              <div class="settings-slider-row"><label>Steering Sensitivity: <b>High (Instant Response)</b></label><input type="range" min="1" max="5" value="4"></div>
+              <div class="settings-slider-row"><label>Wall Collision Push-Out Force: <b>2.8x</b></label><input type="range" min="1" max="5" value="3"></div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">TRAFFIC DENSITY CONTROLS</div>
+              <div class="settings-slider-row"><label>Civilian Car Density: <b>Normal (14 cars)</b></label><input type="range" min="4" max="30" value="14"></div>
+              <div class="settings-slider-row"><label>Pedestrian Density: <b>Active (16 pedestrians)</b></label><input type="range" min="6" max="35" value="16"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 21. SERVER MANAGEMENT -->
+        <section id="sec-server" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>SERVER HEALTH, PROCESSES &amp; API METRICS</h2>
+              <p>Monitor Node.js runtime, memory footprints, API latency, and restart services.</p>
+            </div>
+            <button class="btn-danger" id="restart-server-btn">🔄 RESTART SERVER PROCESS</button>
+          </div>
+          <div class="grid-3col">
+            <div class="panel-card"><h3>CPU LOAD</h3><div class="metric-big">4.2%</div><span>Dual-Core Host &bull; Normal</span></div>
+            <div class="panel-card"><h3>RAM ALLOCATION</h3><div class="metric-big">68 MB</div><span>Node.js v24 Runtime</span></div>
+            <div class="panel-card"><h3>API LATENCY</h3><div class="metric-big">14 ms</div><span>HTTP 200 OK &bull; Healthy</span></div>
+          </div>
+        </section>
+
+        <!-- 22. GAME ANALYTICS -->
+        <section id="sec-analytics" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>PLAYER RETENTION &amp; BEHAVIORAL ANALYTICS</h2>
+              <p>Evaluate mission drop-off curves, favorite vehicles, and daily active users.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">FAVORITE VEHICLES CHOSEN BY PLAYERS</div>
+              <div class="district-bars">
+                <div class="bar-row"><span>Infernus Supercar</span><div class="bar-wrap"><div class="bar-fill" style="width:92%;"></div></div><b>92%</b></div>
+                <div class="bar-row"><span>Banshee Turbo</span><div class="bar-wrap"><div class="bar-fill" style="width:78%;"></div></div><b>78%</b></div>
+                <div class="bar-row"><span>Police Cruiser</span><div class="bar-wrap"><div class="bar-fill" style="width:45%;"></div></div><b>45%</b></div>
+                <div class="bar-row"><span>Vice City Taxi</span><div class="bar-wrap"><div class="bar-fill" style="width:30%;"></div></div><b>30%</b></div>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">SESSION DURATION DISTRIBUTION</div>
+              <div class="district-bars">
+                <div class="bar-row"><span>> 30 Minutes</span><div class="bar-wrap"><div class="bar-fill" style="width:65%;"></div></div><b>65%</b></div>
+                <div class="bar-row"><span>15 - 30 Minutes</span><div class="bar-wrap"><div class="bar-fill" style="width:25%;"></div></div><b>25%</b></div>
+                <div class="bar-row"><span>< 15 Minutes</span><div class="bar-wrap"><div class="bar-fill" style="width:10%;"></div></div><b>10%</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 23. BUG TRACKING -->
+        <section id="sec-bugs" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>BUG REPORTING &amp; ISSUE TRACKER</h2>
+              <p>Track reported glitches, camera physics anomalies, and engine resolutions.</p>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>BUG ID</th><th>SEVERITY</th><th>TITLE</th><th>STATUS</th></tr></thead>
+                <tbody>
+                  <tr><td>BUG-101</td><td><span class="badge-status status-banned">FIXED</span></td><td>Car stuck in walls with reverse torque</td><td>Resolved (Circle-AABB push-out implemented)</td></tr>
+                  <tr><td>BUG-102</td><td><span class="badge-status status-banned">FIXED</span></td><td>OTP code displayed on login screen</td><td>Resolved (Secure server log only)</td></tr>
+                  <tr><td>BUG-103</td><td><span class="badge-status status-banned">FIXED</span></td><td>Chapter 3 Cartel Traitor supercar untracked</td><td>Resolved (3D beacon &amp; GPS guidance added)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 24. NOTIFICATIONS & EMAIL DISPATCHER -->
+        <section id="sec-notifications" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>NOTIFICATION CENTER &amp; EMAIL OTP DISPATCH LOGS</h2>
+              <p>Broadcast systemwide in-game announcements and inspect live email dispatches.</p>
+            </div>
+          </div>
+
+          <!-- Broadcast in-game banner -->
+          <div class="panel-card" style="margin-bottom:16px;">
+            <div class="card-title">📢 BROADCAST IN-GAME ANNOUNCEMENT TO ALL PLAYERS</div>
+            <div class="broadcast-form">
+              <input type="text" id="broadcast-msg-input" placeholder="Type message to appear on all active player screens..." class="search-field" style="flex:1;">
+              <button class="btn-neon-gold" id="send-broadcast-btn">BROADCAST TO STREETS</button>
+            </div>
+          </div>
+
+          <!-- Free Gmail SMTP Configuration Card -->
+          <div class="panel-card" style="margin-bottom:16px;">
+            <div class="card-title">📨 ZERO-COST GMAIL SMTP CONFIGURATION (OPTIONAL FOR REAL INBOX DELIVERY)</div>
+            <p style="font-size:12px; color:#aaa; margin-bottom:12px;">
+              You do <b>NOT</b> need to pay any money or buy anything! Google provides 500 free emails/day. Enter your Gmail and 16-character App Password below to deliver codes directly to player inboxes:
+            </p>
+            <div class="smtp-config-row">
+              <input type="email" id="smtp-email-input" placeholder="your_gmail@gmail.com" class="search-field">
+              <input type="password" id="smtp-pass-input" placeholder="16-character Gmail App Password (abcd efgh ijkl mnop)" class="search-field">
+              <button class="btn-pill-cyan" id="save-smtp-btn">SAVE &amp; ACTIVATE SMTP</button>
+            </div>
+            <div id="smtp-status-note" class="smtp-note"></div>
+          </div>
+
+          <!-- Live Outgoing Email Logs (Admin inspection only) -->
+          <div class="panel-card">
+            <div class="card-title">
+              <span>LIVE EMAIL DISPATCH AUDIT LOG (ADMIN INSPECTION ONLY)</span>
+              <button class="btn-pill-cyan" id="refresh-email-logs-btn" style="padding:4px 10px; font-size:10px;">🔄 REFRESH LOGS</button>
+            </div>
+            <p style="font-size:11px; color:#888; margin-bottom:10px;">
+              <i>Note: Security practice enforced &mdash; verification codes are recorded here for administrator auditing and NEVER leaked on the player's login screen!</i>
+            </p>
+            <div class="table-responsive">
+              <table class="data-table" id="email-logs-table">
+                <thead>
+                  <tr>
+                    <th>LOG ID</th>
+                    <th>RECIPIENT EMAIL</th>
+                    <th>OTP ACCESS CODE</th>
+                    <th>DELIVERY STATUS</th>
+                    <th>METHOD</th>
+                    <th>SENT AT</th>
+                  </tr>
+                </thead>
+                <tbody id="email-logs-body">
+                  <!-- Injected via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 25. ADMINISTRATORS & ROLES -->
+        <section id="sec-admins" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>ADMINISTRATOR ACCESS &amp; RBAC ROLES</h2>
+              <p>Configure administrative team clearances, Super Admins, and Moderators.</p>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>ADMINISTRATOR</th><th>ASSIGNED ROLE</th><th>PERMISSIONS</th><th>STATUS</th></tr></thead>
+                <tbody>
+                  <tr><td>👑 Master Commander</td><td>Super Administrator</td><td>Full System &bull; All Modules</td><td><span class="badge-status status-active">ACTIVE</span></td></tr>
+                  <tr><td>🛡️ Senior Moderator</td><td>Game Moderator</td><td>Player Bans &bull; Reports Queue</td><td><span class="badge-status status-active">ACTIVE</span></td></tr>
+                  <tr><td>💰 Economy Manager</td><td>Financial Officer</td><td>Treasury &bull; Pricing Balances</td><td><span class="badge-status status-active">ACTIVE</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 26. AUDIT LOGS -->
+        <section id="sec-audit" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>IMMUTABLE AUDIT LOG &amp; COMPLIANCE</h2>
+              <p>Chronological security trail of all administrative actions, cash adjustments, and bans.</p>
+            </div>
+            <button class="btn-pill-cyan" id="refresh-audit-btn">🔄 REFRESH LOGS</button>
+          </div>
+          <div class="panel-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>LOG ID</th><th>ADMIN</th><th>ACTION</th><th>TARGET</th><th>REASON</th><th>TIMESTAMP</th></tr></thead>
+                <tbody id="audit-logs-body">
+                  <!-- Injected via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 27. BACKUP & RECOVERY -->
+        <section id="sec-backup" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>DATABASE SNAPSHOTS &amp; DISASTER RECOVERY</h2>
+              <p>Export complete JSON snapshots of all player accounts, world parameters, and audit trails.</p>
+            </div>
+          </div>
+          <div class="grid-2col">
+            <div class="panel-card">
+              <div class="card-title">DOWNLOAD COMPLETE DATABASE BACKUP</div>
+              <p style="font-size:12px; color:#aaa; margin-bottom:14px;">Generates a full JSON snapshot of all player accounts, mission progression, treasury balances, and audit records.</p>
+              <button class="btn-neon-gold" id="download-backup-btn">💾 DOWNLOAD BACKUP JSON</button>
+            </div>
+            <div class="panel-card">
+              <div class="card-title">RESTORE DATABASE FROM BACKUP FILE</div>
+              <p style="font-size:12px; color:#aaa; margin-bottom:14px;">Select a previously exported JSON backup file to restore system state.</p>
+              <input type="file" id="restore-file-input" accept=".json" style="margin-bottom:10px;">
+              <button class="btn-danger" id="restore-backup-btn">⚠️ RESTORE SYSTEM STATE</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 28. ADMIN PROFILE -->
+        <section id="sec-profile" class="content-panel">
+          <div class="panel-header">
+            <div>
+              <h2>ADMINISTRATOR PROFILE &amp; CREDENTIALS</h2>
+              <p>Manage commander display name, emergency contact, and security credentials.</p>
+            </div>
+          </div>
+          <div class="panel-card" style="max-width:540px;">
+            <div class="form-group">
+              <label>ADMIN CALLSIGN</label>
+              <input type="text" value="Master Commander" class="search-field" readonly>
+            </div>
+            <div class="form-group">
+              <label>SECURITY ROLE</label>
+              <input type="text" value="Super Administrator (Full Root Clearance)" class="search-field" readonly>
+            </div>
+            <div class="form-group">
+              <label>MASTER PASSCODE</label>
+              <input type="password" value="••••••••" class="search-field" readonly>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

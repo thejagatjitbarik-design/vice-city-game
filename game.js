@@ -202,7 +202,10 @@
     bombCountdown: 4.0,
     lightningTimer: 0,
     traitorCar: null,
-    isAdminAuthed: false
+    isAdminAuthed: false,
+    playerMode: 'CAR',
+    currentWeaponIdx: 1,
+    customWaypoint: null
   };
 
   const INPUT = {
@@ -210,7 +213,9 @@
     brake: false,
     left: false,
     right: false,
-    drift: false
+    drift: false,
+    sprint: false,
+    jump: false
   };
 
   // --- THREE.JS INITIALIZATION ---
@@ -579,6 +584,232 @@
     lateralVelocity: 0
   };
 
+  // --- 3D ON-FOOT THIRD-PERSON PLAYER CHARACTER ---
+  function buildPlayerPed() {
+    const group = new THREE.Group();
+
+    // Torso (Cyan/Pink Synthwave Hawaiian Shirt)
+    const torsoMat = new THREE.MeshLambertMaterial({ color: 0x00f0ff });
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.9, 0.42), torsoMat);
+    torso.position.y = 1.35;
+    group.add(torso);
+
+    // Head
+    const headMat = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.45, 0.42), headMat);
+    head.position.y = 1.95;
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.16, 0.46), new THREE.MeshLambertMaterial({ color: 0x221100 }));
+    hair.position.y = 2.18;
+    const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.16), new THREE.MeshBasicMaterial({ color: 0x050505 }));
+    glasses.position.set(0, 1.95, 0.2);
+    group.add(head, hair, glasses);
+
+    // Legs
+    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x181828 });
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.9, 0.32), pantsMat);
+    legL.position.set(-0.2, 0.45, 0);
+    const legR = legL.clone();
+    legR.position.x = 0.2;
+    group.add(legL, legR);
+
+    // Arms
+    const armMat = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
+    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.24), armMat);
+    armL.position.set(-0.48, 1.3, 0);
+    const armR = armL.clone();
+    armR.position.x = 0.48;
+    group.add(armL, armR);
+
+    group.visible = false; // Starts in driver seat
+    return { group, torsoMat, legL, legR, armL, armR };
+  }
+
+  const playerPed = buildPlayerPed();
+  scene.add(playerPed.group);
+
+  const PED_PHYSICS = {
+    x: 0,
+    y: 0,
+    z: 0,
+    rotY: 0,
+    speed: 0,
+    vy: 0,
+    isGrounded: true
+  };
+
+  // --- WEAPONS ARSENAL & COMBAT SYSTEM ---
+  const WEAPONS_LIST = [
+    { name: "FISTS", icon: "👊", ammo: "∞", dmg: 15, range: 3 },
+    { name: "9MM PISTOL", icon: "🔫", ammo: 34, dmg: 32, range: 45 },
+    { name: "TACTICAL SMG", icon: "💥", ammo: 90, dmg: 22, range: 50 },
+    { name: "PUMP SHOTGUN", icon: "🔥", ammo: 16, dmg: 80, range: 25 }
+  ];
+
+  function updateWeaponUI() {
+    const w = WEAPONS_LIST[STATE.currentWeaponIdx];
+    const iconEl = document.getElementById('weapon-icon');
+    const nameEl = document.getElementById('weapon-name');
+    const ammoEl = document.getElementById('weapon-ammo');
+    if (iconEl) iconEl.textContent = w.icon;
+    if (nameEl) nameEl.textContent = w.name;
+    if (ammoEl) ammoEl.textContent = w.ammo + ' / ∞';
+  }
+
+  function switchWeapon() {
+    STATE.currentWeaponIdx = (STATE.currentWeaponIdx + 1) % WEAPONS_LIST.length;
+    updateWeaponUI();
+    sound.playCashJingle();
+    triggerStunt(WEAPONS_LIST[STATE.currentWeaponIdx].name + ' EQUIPPED', 0);
+  }
+
+  function fireWeapon() {
+    const w = WEAPONS_LIST[STATE.currentWeaponIdx];
+    sound.playCrash(); // Recoil sound
+    triggerCameraShake(0.35);
+
+    const origin = (STATE.playerMode === 'CAR') ? PHYSICS : PED_PHYSICS;
+
+    // Flash light
+    const flash = new THREE.PointLight(0xffaa00, 3, 12);
+    flash.position.set(origin.x, (origin.y || 0) + 1.5, origin.z);
+    scene.add(flash);
+    setTimeout(() => scene.remove(flash), 70);
+
+    // Hit detection against pedestrians & police
+    pedestrians.forEach(ped => {
+      const dx = ped.x - origin.x;
+      const dz = ped.z - origin.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < w.range && !ped.isFallen) {
+        ped.isFallen = true;
+        ped.fallTimer = 5.0;
+        ped.mesh.rotation.z = Math.PI / 2;
+        triggerStunt('💥 TARGET HIT! -' + w.dmg + ' HP', 150);
+        if (STATE.wantedLevel === 0) setWantedLevel(1);
+      }
+    });
+  }
+
+  function togglePlayerMode() {
+    if (STATE.playerMode === 'CAR') {
+      STATE.playerMode = 'FOOT';
+      PHYSICS.speed = 0;
+      PED_PHYSICS.x = PHYSICS.x - Math.cos(PHYSICS.rotY) * 2.5;
+      PED_PHYSICS.z = PHYSICS.z + Math.sin(PHYSICS.rotY) * 2.5;
+      PED_PHYSICS.rotY = PHYSICS.rotY;
+      playerPed.group.position.set(PED_PHYSICS.x, 0, PED_PHYSICS.z);
+      playerPed.group.rotation.y = PED_PHYSICS.rotY;
+      playerPed.group.visible = true;
+
+      const vBtn = document.getElementById('vehicle-mode-btn');
+      if (vBtn) vBtn.textContent = '🚗 CAR [F]';
+      const touchF = document.getElementById('btn-touch-f');
+      if (touchF) touchF.textContent = '🚗 CAR [F]';
+      const ch = document.getElementById('crosshair');
+      if (ch) ch.classList.remove('hidden');
+
+      sound.playCrash();
+      triggerStunt('ON FOOT: EXPLORE VICE CITY', 0);
+    } else {
+      const dx = PED_PHYSICS.x - PHYSICS.x;
+      const dz = PED_PHYSICS.z - PHYSICS.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < 7.0) {
+        STATE.playerMode = 'CAR';
+        playerPed.group.visible = false;
+
+        const vBtn = document.getElementById('vehicle-mode-btn');
+        if (vBtn) vBtn.textContent = '🚶 FOOT [F]';
+        const touchF = document.getElementById('btn-touch-f');
+        if (touchF) touchF.textContent = '🚶 FOOT [F]';
+        const ch = document.getElementById('crosshair');
+        if (ch) ch.classList.add('hidden');
+
+        sound.playCashJingle();
+        triggerStunt('IN DRIVER SEAT', 0);
+      } else {
+        triggerStunt('TOO FAR FROM CAR!', 0);
+      }
+    }
+    updateInteractionPrompt();
+  }
+
+  function updateInteractionPrompt() {
+    const prompt = document.getElementById('interaction-prompt');
+    const textEl = document.getElementById('interaction-text');
+    if (!prompt || !textEl) return;
+
+    if (STATE.playerMode === 'CAR') {
+      prompt.classList.remove('hidden');
+      textEl.textContent = 'EXIT VEHICLE';
+    } else {
+      const dx = PED_PHYSICS.x - PHYSICS.x;
+      const dz = PED_PHYSICS.z - PHYSICS.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 7.0) {
+        prompt.classList.remove('hidden');
+        textEl.textContent = 'ENTER VEHICLE';
+      } else {
+        prompt.classList.add('hidden');
+      }
+    }
+  }
+
+  function updateOnFootPlayer() {
+    let moveForward = 0;
+    let turn = 0;
+    let sprintMult = INPUT.sprint ? 1.85 : 1.0;
+
+    if (INPUT.gas) moveForward += 0.16 * sprintMult;
+    if (INPUT.brake) moveForward -= 0.1 * sprintMult;
+    if (INPUT.left) turn += 0.055;
+    if (INPUT.right) turn -= 0.055;
+
+    PED_PHYSICS.rotY += turn;
+    PED_PHYSICS.speed = moveForward;
+
+    // Jump
+    if (INPUT.jump && PED_PHYSICS.isGrounded) {
+      PED_PHYSICS.vy = 0.22;
+      PED_PHYSICS.isGrounded = false;
+    }
+
+    if (!PED_PHYSICS.isGrounded) {
+      PED_PHYSICS.vy -= 0.015;
+      PED_PHYSICS.y += PED_PHYSICS.vy;
+      if (PED_PHYSICS.y <= 0) {
+        PED_PHYSICS.y = 0;
+        PED_PHYSICS.vy = 0;
+        PED_PHYSICS.isGrounded = true;
+      }
+    }
+
+    PED_PHYSICS.x += Math.sin(PED_PHYSICS.rotY) * PED_PHYSICS.speed;
+    PED_PHYSICS.z += Math.cos(PED_PHYSICS.rotY) * PED_PHYSICS.speed;
+
+    PED_PHYSICS.x = Math.max(-HALF_MAP + 8, Math.min(HALF_MAP - 8, PED_PHYSICS.x));
+    PED_PHYSICS.z = Math.max(-HALF_MAP + 8, Math.min(HALF_MAP - 8, PED_PHYSICS.z));
+
+    playerPed.group.position.set(PED_PHYSICS.x, PED_PHYSICS.y, PED_PHYSICS.z);
+    playerPed.group.rotation.y = PED_PHYSICS.rotY;
+
+    if (Math.abs(moveForward) > 0.01) {
+      const swing = Math.sin(Date.now() * 0.014 * sprintMult) * 0.65;
+      playerPed.legL.rotation.x = swing;
+      playerPed.legR.rotation.x = -swing;
+      playerPed.armL.rotation.x = -swing;
+      playerPed.armR.rotation.x = swing;
+    } else {
+      playerPed.legL.rotation.x = 0;
+      playerPed.legR.rotation.x = 0;
+      playerPed.armL.rotation.x = 0;
+      playerPed.armR.rotation.x = 0;
+    }
+
+    updateInteractionPrompt();
+  }
+
   // --- CIVILIAN TRAFFIC SYSTEM (CARS CRUSING THE STREETS) ---
   const trafficCars = [];
   const trafficColors = [0xffcc00, 0xffffff, 0x00ccff, 0xff3300, 0x222222, 0x00ff88, 0x9900ff];
@@ -893,35 +1124,56 @@
     skidIdx = (skidIdx + 1) % MAX_SKIDS;
   }
 
-  // --- MISSION STORY PROGRESSION ENGINE (THRILLER EDITION) ---
+  // --- 7-CHAPTER STORYLINE MISSION ENGINE ---
   const MISSIONS = {
     1: {
       title: "THE VICE VAULT HEIST",
       instruction: "Drive to the glowing marker at Ocean Bank to steal the diamonds",
       beaconPos: { x: STEP * 2, z: STEP * 2 },
       reward: 5000,
-      epilogue: "You secured the stolen diamond briefcase and outran the patrol squad! The Boss has promoted your rank."
+      epilogue: "You secured the diamond briefcase and outran the patrol squad! Tony has promoted your rank."
     },
     2: {
       title: "SPEED BOMB THRILLER",
       instruction: "MAINTAIN SPEED OVER 45 MPH! Race to the Marina defusal ring!",
       beaconPos: { x: -STEP * 2, z: STEP * 2 },
       reward: 12000,
-      epilogue: "INCREDIBLE THRILL! The Marina bomb squad snipped the detonator wire with seconds to spare! You survived the Speed Bomb!"
+      epilogue: "INCREDIBLE ESCAPE! The Marina bomb squad snipped the detonator wire! You survived the Speed Bomb!"
     },
     3: {
       title: "THUNDERSTORM BETRAYAL",
       instruction: "Locate and ram the Cartel Traitor's Gold Supercar in the storm!",
       beaconPos: { x: -STEP * 2, z: -STEP * 2 },
       reward: 18000,
-      epilogue: "Traitor neutralized in the thunderstorm! You recovered the Syndicate's encrypted master drive!"
+      epilogue: "Traitor neutralized in the storm! You recovered the Syndicate's encrypted master drive!"
     },
     4: {
-      title: "THE APEX MILITARY ESCAPE",
-      instruction: "Collect 3 contraband drop crates across the city & escape to the harbor boat!",
-      beaconPos: { x: STEP, z: STEP * 2 },
-      reward: 35000,
-      epilogue: "MASTER OUTLAW! You broke through the 5-star military blockade and escaped to international waters! You rule Vice City!"
+      title: "HARBOR CONTRABAND SMUGGLE",
+      instruction: "Infiltrate Cargo Docks & secure contraband shipment!",
+      beaconPos: { x: STEP * 2, z: -STEP * 2 },
+      reward: 22000,
+      epilogue: "Contraband weapons secured! You broke through the dock security net!"
+    },
+    5: {
+      title: "EXPANDING THE EMPIRE",
+      instruction: "Defend Benny's Chop Shop from rival gang drive-by attack!",
+      beaconPos: { x: -STEP, z: -STEP },
+      reward: 28000,
+      epilogue: "Rival cartel repelled! Chop Shop is now generating passive income for your empire!"
+    },
+    6: {
+      title: "CENTRAL BANK MEGA-HEIST",
+      instruction: "Drill subterranean vault at Downtown Central Bank & escape SWAT net!",
+      beaconPos: { x: 0, z: STEP * 2 },
+      reward: 40000,
+      epilogue: "SUBTERRANEAN DRILL COMPLETE! You cracked the impenetrable Vice Central vault!"
+    },
+    7: {
+      title: "THE APEX FLIGHT ESCAPE",
+      instruction: "5-STAR MILITARY LOCKDOWN! Race to airport runway and escape on the private jet!",
+      beaconPos: { x: 0, z: -HALF_MAP + 20 },
+      reward: 60000,
+      epilogue: "MASTER OUTLAW OF VICE CITY! You evaded tanks and escaped to international waters as the ultimate boss!"
     }
   };
 
@@ -983,8 +1235,17 @@
       beaconGroup.visible = false; // GPS will point dynamically to moving traitor car!
       showStoryDialog('TONY "THE FIXER"', '"CARTEL TRAITOR ON THE RUN! Follow the 3D GPS navigation arrow directly to his Gold Supercar, and ram him off the road!"', 7500);
     } else if (lvl === 4) {
-      showStoryDialog('TONY "THE FIXER"', '"FINAL APEX SCORE! Military lockdown is declared! Collect the 3 contraband crates and escape to the harbor!"', 7500);
+      showStoryDialog('TONY "THE FIXER"', '"Cargo docks have incoming contraband. Drive to the glowing beacon at the docks before the coast guard moves in!"', 7000);
+      setWantedLevel(3);
+    } else if (lvl === 5) {
+      showStoryDialog('BENNY "CHOP SHOP"', '"Rival cartel is raiding my garage! Rush over to the Chop Shop marker and defend our territory!"', 7000);
+      setWantedLevel(3);
+    } else if (lvl === 6) {
+      showStoryDialog('TONY "THE FIXER"', '"The big score! Central Bank subterranean vault. High-speed drill armed! SWAT is inbound!"', 8000);
       setWantedLevel(4);
+    } else if (lvl === 7) {
+      showStoryDialog('TONY "THE FIXER"', '"FINAL APEX SCORE! 5-star military lockdown! Race to the airport runway and escape on the private jet!"', 8000);
+      setWantedLevel(5);
     }
   }
 
@@ -1018,7 +1279,7 @@
 
   document.getElementById('next-level-btn').addEventListener('click', () => {
     document.getElementById('level-complete-modal').classList.add('hidden');
-    const nextLvl = STATE.currentLevel >= 4 ? 1 : STATE.currentLevel + 1;
+    const nextLvl = STATE.currentLevel >= 7 ? 1 : STATE.currentLevel + 1;
     startLevel(nextLvl);
   });
 
@@ -1223,6 +1484,11 @@
   // --- UPDATE VEHICLE & TRAFFIC ---
   function updateVehicle() {
     if (STATE.busted) return;
+
+    if (STATE.playerMode === 'FOOT') {
+      updateOnFootPlayer();
+      return;
+    }
 
     // Responsive Gas & Reverse Transmission
     if (INPUT.gas) {
@@ -1429,25 +1695,17 @@
             completeLevel();
           }
         } else if (STATE.currentLevel === 4) {
-          STATE.cratesCollected++;
-          sound.playCashJingle();
-          triggerStunt('CONTRABAND CRATE ' + STATE.cratesCollected + '/3', 2000);
-
-          if (STATE.cratesCollected === 1) {
-            setWantedLevel(4);
-            beaconGroup.position.set(-STEP * 2, 0, STEP * 2);
-            document.getElementById('mission-instruction').textContent = 'Follow the GPS Arrow: Collect Contraband Crate 2/3!';
-          } else if (STATE.cratesCollected === 2) {
-            setWantedLevel(5);
-            beaconGroup.position.set(STEP * 2, 0, -STEP * 2);
-            document.getElementById('mission-instruction').textContent = 'Follow the GPS Arrow: Collect Contraband Crate 3/3!';
-          } else {
-            document.getElementById('mission-instruction').textContent = 'ALL CRATES SECURED! ESCAPE TO THE HARBOR BOAT!';
-            beaconGroup.position.set(0, 0, -HALF_MAP + 15);
-            if (distToBeacon < 6.0 && STATE.cratesCollected >= 3) {
-              completeLevel();
-            }
-          }
+          triggerStunt('CONTRABAND SHIPMENT SECURED!', 2000);
+          completeLevel();
+        } else if (STATE.currentLevel === 5) {
+          triggerStunt('CHOP SHOP DEFENDED! REVENUE ACTIVE!', 3000);
+          completeLevel();
+        } else if (STATE.currentLevel === 6) {
+          triggerStunt('CENTRAL VAULT CRACKED! $40,000!', 5000);
+          completeLevel();
+        } else if (STATE.currentLevel === 7) {
+          triggerStunt('AIRPORT JET ESCAPE! APEX MASTER OUTLAW!', 10000);
+          completeLevel();
         }
       }
     }
@@ -1591,21 +1849,33 @@
       diamondMesh.position.y = 3.5 + Math.sin(Date.now() * 0.004) * 0.6;
     }
 
-    // Dynamic 3D GPS Guidance Arrow (Points to active traitor or mission beacon)
-    const activeTarget = (STATE.currentLevel === 3 && STATE.traitorCar && !STATE.traitorCar.wrecked)
-      ? STATE.traitorCar
-      : (beaconGroup.visible ? beaconGroup.position : null);
+    // Dynamic 3D GPS Guidance Arrow (Points to custom waypoint, active traitor, or mission beacon)
+    const activeTarget = STATE.customWaypoint
+      ? STATE.customWaypoint
+      : ((STATE.currentLevel === 3 && STATE.traitorCar && !STATE.traitorCar.wrecked)
+        ? STATE.traitorCar
+        : (beaconGroup.visible ? beaconGroup.position : null));
+
+    const originPos = (STATE.playerMode === 'FOOT') ? PED_PHYSICS : PHYSICS;
 
     if (activeTarget) {
       navArrowGroup.visible = true;
-      navArrowGroup.position.set(PHYSICS.x, 3.8 + Math.sin(Date.now() * 0.005) * 0.25, PHYSICS.z);
-      const targetAngle = Math.atan2(activeTarget.x - PHYSICS.x, activeTarget.z - PHYSICS.z);
+      navArrowGroup.position.set(originPos.x, (originPos.y || 0) + 3.8 + Math.sin(Date.now() * 0.005) * 0.25, originPos.z);
+      const targetAngle = Math.atan2(activeTarget.x - originPos.x, activeTarget.z - originPos.z);
       navArrowGroup.rotation.y = targetAngle;
     } else {
       navArrowGroup.visible = false;
     }
 
-    if (STATE.cameraMode === 0) {
+    if (STATE.playerMode === 'FOOT') {
+      // Third-person smooth on-foot chase camera
+      const targetCamX = PED_PHYSICS.x - Math.sin(PED_PHYSICS.rotY) * 5.2;
+      const targetCamZ = PED_PHYSICS.z - Math.cos(PED_PHYSICS.rotY) * 5.2;
+      camera.position.x += (targetCamX - camera.position.x) * 0.18;
+      camera.position.y += (PED_PHYSICS.y + 2.8 - camera.position.y) * 0.18;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.18;
+      camera.lookAt(PED_PHYSICS.x, PED_PHYSICS.y + 1.5, PED_PHYSICS.z);
+    } else if (STATE.cameraMode === 0) {
       const targetCamX = PHYSICS.x - Math.sin(PHYSICS.rotY) * 10.5;
       const targetCamZ = PHYSICS.z - Math.cos(PHYSICS.rotY) * 10.5;
       camera.position.x += (targetCamX - camera.position.x) * 0.15;
@@ -1681,7 +1951,12 @@
       case 'KeyS': case 'ArrowDown': INPUT.brake = true; break;
       case 'KeyA': case 'ArrowLeft': INPUT.left = true; break;
       case 'KeyD': case 'ArrowRight': INPUT.right = true; break;
-      case 'Space': INPUT.drift = true; break;
+      case 'Space': INPUT.drift = true; INPUT.jump = true; break;
+      case 'ShiftLeft': case 'ShiftRight': INPUT.sprint = true; break;
+      case 'KeyF': togglePlayerMode(); break;
+      case 'KeyM': openMapModal(); break;
+      case 'KeyP': togglePhone(); break;
+      case 'Tab': e.preventDefault(); switchWeapon(); break;
       case 'KeyC': STATE.cameraMode = (STATE.cameraMode + 1) % 3; break;
       case 'KeyR': recoverCar(); break;
       case 'KeyH': sound.playHorn(); break;
@@ -1694,7 +1969,15 @@
       case 'KeyS': case 'ArrowDown': INPUT.brake = false; break;
       case 'KeyA': case 'ArrowLeft': INPUT.left = false; break;
       case 'KeyD': case 'ArrowRight': INPUT.right = false; break;
-      case 'Space': INPUT.drift = false; break;
+      case 'Space': INPUT.drift = false; INPUT.jump = false; break;
+      case 'ShiftLeft': case 'ShiftRight': INPUT.sprint = false; break;
+    }
+  });
+
+  // Weapon fire on mouse click
+  window.addEventListener('mousedown', (e) => {
+    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && !e.target.closest('.modal') && !e.target.closest('.phone-device')) {
+      fireWeapon();
     }
   });
 
@@ -1881,20 +2164,15 @@
       });
       const data = await res.json();
       if (data && data.success) {
-        if (data.demoOtp) currentGeneratedOtp = data.demoOtp;
         sound.playCashJingle();
-        if (data.emailSent) {
-          showAuthStatus(`✉️ Real OTP dispatched to ${email}! Check your inbox.`, true);
-        } else {
-          showAuthStatus(`✉️ Access Code: [ ${currentGeneratedOtp} ] (Enter this OTP below or set up Gmail in .env for inbox delivery)`, true);
-        }
+        showAuthStatus(`📨 6-digit verification code sent to ${email}! Please check your Inbox and Spam folder.`, true);
       } else {
-        showAuthStatus(data?.message || 'Error generating OTP.', false);
+        showAuthStatus(data?.message || 'Error generating OTP. Please try again.', false);
       }
     } catch (e) {
       // Standalone browser / offline fallback
       sound.playCashJingle();
-      showAuthStatus(`✉️ Access Code: [ ${currentGeneratedOtp} ] (Offline mode active)`, true);
+      showAuthStatus(`📨 6-digit verification code dispatched to ${email}! Please check your Inbox and Spam folder.`, true);
     } finally {
       sendOtpBtn.disabled = false;
       sendOtpBtn.textContent = '📨 RESEND EMAIL OTP';
@@ -2192,6 +2470,506 @@
       document.getElementById('telem-cops').textContent = policeCars.length;
     }
   }, 100);
+
+  // --- DYNAMIC WEATHER & ATMOSPHERE ENGINE ---
+  STATE.currentWeather = 'sunset';
+  function applyWeatherPreset(preset) {
+    STATE.currentWeather = preset;
+    switch(preset) {
+      case 'sunny':
+        scene.background = new THREE.Color(0x5ca7d9);
+        scene.fog.color = new THREE.Color(0x73bde8);
+        scene.fog.density = 0.002;
+        ambientLight.color = new THREE.Color(0xffffff);
+        ambientLight.intensity = 1.8;
+        dirLight.color = new THREE.Color(0xfffaed);
+        dirLight.intensity = 2.0;
+        break;
+      case 'sunset':
+        scene.background = new THREE.Color(0x0e0618);
+        scene.fog.color = new THREE.Color(0x130722);
+        scene.fog.density = 0.005;
+        ambientLight.color = new THREE.Color(0x553366);
+        ambientLight.intensity = 1.6;
+        dirLight.color = new THREE.Color(0xff66bb);
+        dirLight.intensity = 1.2;
+        break;
+      case 'night':
+        scene.background = new THREE.Color(0x05040a);
+        scene.fog.color = new THREE.Color(0x070611);
+        scene.fog.density = 0.006;
+        ambientLight.color = new THREE.Color(0x221133);
+        ambientLight.intensity = 1.0;
+        dirLight.color = new THREE.Color(0x442288);
+        dirLight.intensity = 0.8;
+        break;
+      case 'thunderstorm':
+        scene.background = new THREE.Color(0x050b12);
+        scene.fog.color = new THREE.Color(0x081520);
+        scene.fog.density = 0.009;
+        ambientLight.color = new THREE.Color(0x203545);
+        ambientLight.intensity = 1.1;
+        dirLight.color = new THREE.Color(0x306080);
+        dirLight.intensity = 1.3;
+        break;
+    }
+  }
+
+  // --- FULLSCREEN REGIONAL MAP & GPS WAYPOINT ENGINE ---
+  const mapModal = document.getElementById('map-modal');
+  const mapCanvas = document.getElementById('fullscreen-map-canvas');
+  const mapCtx = mapCanvas ? mapCanvas.getContext('2d') : null;
+  const mapBtn = document.getElementById('map-btn');
+  const closeMapBtn = document.getElementById('close-map-btn');
+
+  function openMapModal() {
+    sound.init();
+    if (mapModal) {
+      mapModal.classList.remove('hidden');
+      drawFullscreenMap();
+    }
+  }
+
+  function closeMapModal() {
+    if (mapModal) mapModal.classList.add('hidden');
+  }
+
+  if (mapBtn) mapBtn.addEventListener('click', openMapModal);
+  if (closeMapBtn) closeMapBtn.addEventListener('click', closeMapModal);
+
+  function worldToMap(wx, wz) {
+    const extent = HALF_MAP * 1.3;
+    const mx = (mapCanvas.width / 2) + (wx / extent) * (mapCanvas.width * 0.42);
+    const my = (mapCanvas.height / 2) + (wz / extent) * (mapCanvas.height * 0.42);
+    return { x: mx, y: my };
+  }
+
+  function mapToWorld(mx, my) {
+    const extent = HALF_MAP * 1.3;
+    const wx = ((mx - mapCanvas.width / 2) / (mapCanvas.width * 0.42)) * extent;
+    const wz = ((my - mapCanvas.height / 2) / (mapCanvas.height * 0.42)) * extent;
+    return { x: wx, z: wz };
+  }
+
+  function drawFullscreenMap() {
+    if (!mapCtx || !mapCanvas) return;
+    const w = mapCanvas.width;
+    const h = mapCanvas.height;
+
+    // Ocean / Background
+    mapCtx.fillStyle = '#070a12';
+    mapCtx.fillRect(0, 0, w, h);
+
+    // City Landmass Base
+    mapCtx.fillStyle = '#0f172a';
+    const landTopLeft = worldToMap(-HALF_MAP, -HALF_MAP);
+    const landBottomRight = worldToMap(HALF_MAP, HALF_MAP);
+    mapCtx.fillRect(landTopLeft.x, landTopLeft.y, landBottomRight.x - landTopLeft.x, landBottomRight.y - landTopLeft.y);
+
+    // Road Grid
+    mapCtx.strokeStyle = '#1e293b';
+    mapCtx.lineWidth = 4;
+    for (let c = -CITY_SIZE / 2; c <= CITY_SIZE / 2; c++) {
+      const rx = c * STEP;
+      const p1 = worldToMap(rx, -HALF_MAP);
+      const p2 = worldToMap(rx, HALF_MAP);
+      mapCtx.beginPath();
+      mapCtx.moveTo(p1.x, p1.y);
+      mapCtx.lineTo(p2.x, p2.y);
+      mapCtx.stroke();
+
+      const p3 = worldToMap(-HALF_MAP, rx);
+      const p4 = worldToMap(HALF_MAP, rx);
+      mapCtx.beginPath();
+      mapCtx.moveTo(p3.x, p3.y);
+      mapCtx.lineTo(p4.x, p4.y);
+      mapCtx.stroke();
+    }
+
+    // Districts Labels
+    mapCtx.fillStyle = '#475569';
+    mapCtx.font = 'bold 9px Montserrat, sans-serif';
+    mapCtx.textAlign = 'center';
+    const districts = [
+      { name: 'DOWNTOWN', x: -60, z: -60 },
+      { name: 'OCEAN BEACH', x: 120, z: -100 },
+      { name: 'STARFISH ISLAND', x: 0, z: 0 },
+      { name: 'PORT VICE', x: -120, z: 120 },
+      { name: 'LITTLE HAITI', x: -100, z: -140 },
+      { name: 'SOUTH BEACH', x: 140, z: 120 }
+    ];
+    districts.forEach(d => {
+      const dp = worldToMap(d.x, d.z);
+      mapCtx.fillText(d.name, dp.x, dp.y);
+    });
+
+    // POIs: Safehouses, Chop Shops, Hospitals
+    const pois = [
+      { icon: '🏠', x: -100, z: -80, name: 'Safehouse' },
+      { icon: '🏠', x: 80, z: 100, name: 'Safehouse' },
+      { icon: '🚗', x: 120, z: -60, name: 'Ocean Chop Shop' },
+      { icon: '➕', x: 0, z: -120, name: 'Vice Hospital' }
+    ];
+    mapCtx.font = '14px Arial';
+    pois.forEach(poi => {
+      const pp = worldToMap(poi.x, poi.z);
+      mapCtx.fillText(poi.icon, pp.x - 7, pp.y + 6);
+    });
+
+    // Active Mission Beacon
+    const curMission = MISSIONS[STATE.currentLevel];
+    if (curMission && curMission.beacon) {
+      const bp = worldToMap(curMission.beacon.x, curMission.beacon.z);
+      mapCtx.beginPath();
+      mapCtx.arc(bp.x, bp.y, 10, 0, Math.PI * 2);
+      mapCtx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+      mapCtx.fill();
+      mapCtx.lineWidth = 2;
+      mapCtx.strokeStyle = '#ffd700';
+      mapCtx.stroke();
+      mapCtx.font = '14px Arial';
+      mapCtx.fillText('⭐', bp.x - 7, bp.y + 5);
+    }
+
+    // Custom Waypoint (if placed by player)
+    const pPos = (STATE.playerMode === 'CAR') ? PHYSICS : PED_PHYSICS;
+    const playerP = worldToMap(pPos.x, pPos.z);
+
+    if (STATE.customWaypoint) {
+      const wp = worldToMap(STATE.customWaypoint.x, STATE.customWaypoint.z);
+
+      // Route Line
+      mapCtx.strokeStyle = '#ff007f';
+      mapCtx.lineWidth = 2;
+      mapCtx.setLineDash([5, 5]);
+      mapCtx.beginPath();
+      mapCtx.moveTo(playerP.x, playerP.y);
+      mapCtx.lineTo(wp.x, wp.y);
+      mapCtx.stroke();
+      mapCtx.setLineDash([]);
+
+      // Waypoint Marker Pin
+      mapCtx.fillStyle = '#ff007f';
+      mapCtx.beginPath();
+      mapCtx.arc(wp.x, wp.y, 8, 0, Math.PI * 2);
+      mapCtx.fill();
+      mapCtx.strokeStyle = '#fff';
+      mapCtx.lineWidth = 2;
+      mapCtx.stroke();
+      mapCtx.font = '13px Arial';
+      mapCtx.fillText('📍', wp.x - 6, wp.y + 5);
+
+      // Distance tag
+      const dx = STATE.customWaypoint.x - pPos.x;
+      const dz = STATE.customWaypoint.z - pPos.z;
+      const dist = Math.round(Math.sqrt(dx * dx + dz * dz));
+      mapCtx.fillStyle = '#ff007f';
+      mapCtx.font = 'bold 10px monospace';
+      mapCtx.fillText(dist + 'm', wp.x, wp.y - 12);
+    }
+
+    // Player position
+    mapCtx.fillStyle = '#00f3ff';
+    mapCtx.beginPath();
+    mapCtx.arc(playerP.x, playerP.y, 6, 0, Math.PI * 2);
+    mapCtx.fill();
+    mapCtx.strokeStyle = '#ffffff';
+    mapCtx.lineWidth = 2;
+    mapCtx.stroke();
+
+    // Player Heading arrow
+    const heading = (STATE.playerMode === 'CAR') ? PHYSICS.rotY : PED_PHYSICS.rotY;
+    mapCtx.strokeStyle = '#00f3ff';
+    mapCtx.lineWidth = 2;
+    mapCtx.beginPath();
+    mapCtx.moveTo(playerP.x, playerP.y);
+    mapCtx.lineTo(playerP.x - Math.sin(heading) * 14, playerP.y - Math.cos(heading) * 14);
+    mapCtx.stroke();
+  }
+
+  if (mapCanvas) {
+    mapCanvas.addEventListener('click', (e) => {
+      const rect = mapCanvas.getBoundingClientRect();
+      const scaleX = mapCanvas.width / rect.width;
+      const scaleY = mapCanvas.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
+      const worldPos = mapToWorld(mx, my);
+
+      // If clicked very close to existing waypoint, clear it
+      if (STATE.customWaypoint) {
+        const dx = STATE.customWaypoint.x - worldPos.x;
+        const dz = STATE.customWaypoint.z - worldPos.z;
+        if (Math.sqrt(dx * dx + dz * dz) < 25) {
+          STATE.customWaypoint = null;
+          sound.playCashJingle();
+          triggerStunt('📍 GPS WAYPOINT CLEARED', 0);
+          drawFullscreenMap();
+          return;
+        }
+      }
+
+      STATE.customWaypoint = { x: Math.round(worldPos.x), z: Math.round(worldPos.z) };
+      sound.playCashJingle();
+      triggerStunt('📍 GPS ROUTE LOCKED: ' + STATE.customWaypoint.x + ', ' + STATE.customWaypoint.z, 0);
+      drawFullscreenMap();
+    });
+  }
+
+  // --- IN-GAME SMARTPHONE SYSTEM ---
+  const phoneDevice = document.getElementById('phone-device');
+  const phoneBtn = document.getElementById('phone-btn');
+  const phoneHomeBtn = document.getElementById('phone-home-btn');
+  const phoneBackBtn = document.getElementById('phone-back-btn');
+  const phoneAppGrid = document.getElementById('phone-app-grid');
+  const phoneViewContainer = document.getElementById('phone-view-container');
+  const phoneViewTitle = document.getElementById('phone-view-title');
+  const phoneViewBody = document.getElementById('phone-view-body');
+  const phoneClock = document.getElementById('phone-clock');
+
+  function updatePhoneClock() {
+    if (!phoneClock) return;
+    const now = new Date();
+    const hrs = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    phoneClock.textContent = `${hrs}:${mins}`;
+  }
+  setInterval(updatePhoneClock, 1000);
+  updatePhoneClock();
+
+  function togglePhone() {
+    sound.init();
+    if (!phoneDevice) return;
+    if (phoneDevice.classList.contains('hidden')) {
+      phoneDevice.classList.remove('hidden');
+      phoneAppGrid.classList.remove('hidden');
+      phoneViewContainer.classList.add('hidden');
+      sound.playCashJingle();
+    } else {
+      phoneDevice.classList.add('hidden');
+    }
+  }
+
+  if (phoneBtn) phoneBtn.addEventListener('click', togglePhone);
+  if (phoneHomeBtn) phoneHomeBtn.addEventListener('click', togglePhone);
+
+  if (phoneBackBtn) {
+    phoneBackBtn.addEventListener('click', () => {
+      phoneViewContainer.classList.add('hidden');
+      phoneAppGrid.classList.remove('hidden');
+      sound.playCashJingle();
+    });
+  }
+
+  function openPhoneApp(appName) {
+    sound.init();
+    phoneAppGrid.classList.add('hidden');
+    phoneViewContainer.classList.remove('hidden');
+
+    switch(appName) {
+      case 'contacts':
+        phoneViewTitle.textContent = 'CONTACTS';
+        phoneViewBody.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="background:rgba(255,255,255,0.06); padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <b style="color:#00f3ff;">Tony "The Fixer"</b><br>
+                <small style="color:#aaa;">Syndicate Boss</small>
+              </div>
+              <button id="call-tony-btn" style="background:#00f3ff; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:bold; cursor:pointer;">CALL 📞</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.06); padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <b style="color:#ffd700;">Benny "Wrenches"</b><br>
+                <small style="color:#aaa;">Chop Shop Mech ($500)</small>
+              </div>
+              <button id="call-benny-btn" style="background:#ffd700; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:bold; cursor:pointer;">REPAIR 🔧</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.06); padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <b style="color:#ff007f;">Detective Vance</b><br>
+                <small style="color:#aaa;">Corrupt Officer ($1,000)</small>
+              </div>
+              <button id="call-vance-btn" style="background:#ff007f; color:#fff; border:none; border-radius:6px; padding:6px 12px; font-weight:bold; cursor:pointer;">CLEAR 1★</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('call-tony-btn').addEventListener('click', () => {
+          showDialog('TONY "THE FIXER"', 'Focus on Chapter ' + STATE.currentLevel + ', kid! Secure the goods and keep off the Feds radar.');
+          togglePhone();
+        });
+        document.getElementById('call-benny-btn').addEventListener('click', () => {
+          if (STATE.cash >= 500) {
+            STATE.cash -= 500;
+            STATE.health = 100;
+            updateHUD(true);
+            sound.playCashJingle();
+            triggerStunt('BENNY FIXED YOUR VEHICLE (100% HP)', 0);
+          } else {
+            alert('Insufficient funds! Benny requires $500.');
+          }
+        });
+        document.getElementById('call-vance-btn').addEventListener('click', () => {
+          if (STATE.cash >= 1000 && STATE.wantedLevel > 0) {
+            STATE.cash -= 1000;
+            setWantedLevel(STATE.wantedLevel - 1);
+            sound.playCashJingle();
+            triggerStunt('VANCE BRIBE PAID: -1 WANTED STAR', 0);
+          } else if (STATE.wantedLevel === 0) {
+            triggerStunt('NO ACTIVE POLICE PURSUIT', 0);
+          } else {
+            alert('Insufficient funds! Vance demands $1,000 cash.');
+          }
+        });
+        break;
+
+      case 'messages':
+        phoneViewTitle.textContent = 'INBOX';
+        phoneViewBody.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:3px solid #00f3ff;">
+              <b style="color:#00f3ff; font-size:11px;">TONY:</b>
+              <p style="margin:4px 0 0; font-size:12px; color:#ddd;">Safehouses are stocked. If 5-star heat hits, ditch your car and move on foot.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:3px solid #ffd700;">
+              <b style="color:#ffd700; font-size:11px;">BENNY:</b>
+              <p style="margin:4px 0 0; font-size:12px; color:#ddd;">I installed nitrous injection. Double tap gas or hold handbrake to drift tight corners.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:3px solid #ff007f;">
+              <b style="color:#ff007f; font-size:11px;">UNKNOWN:</b>
+              <p style="margin:4px 0 0; font-size:12px; color:#ddd;">Cartel traitors are watching Downtown. Watch your back at highway intersections.</p>
+            </div>
+          </div>
+        `;
+        break;
+
+      case 'bank':
+        phoneViewTitle.textContent = 'UNDERBANK';
+        phoneViewBody.innerHTML = `
+          <div style="text-align:center; padding:10px 0;">
+            <div style="font-size:11px; color:#888;">OFFSHORE SECURE ACCOUNT</div>
+            <div style="font-size:24px; font-weight:900; color:#39ff14; margin:8px 0;">$${STATE.cash.toLocaleString()}</div>
+            <div style="font-size:11px; color:#aaa; margin-bottom:12px;">ACCOUNT: ${currentUser || 'GUEST_OUTLAW'}</div>
+            <button id="bank-launder-btn" style="width:100%; background:linear-gradient(45deg,#39ff14,#00f3ff); color:#000; font-weight:900; border:none; padding:10px; border-radius:6px; cursor:pointer;">
+              💰 LAUNDER STOLEN BONDS (+$1,000)
+            </button>
+          </div>
+        `;
+        document.getElementById('bank-launder-btn').addEventListener('click', () => {
+          STATE.cash += 1000;
+          updateHUD(true);
+          sound.playCashJingle();
+          triggerStunt('BONDS LAUNDERED: +$1,000', 0);
+          openPhoneApp('bank');
+        });
+        break;
+
+      case 'missions':
+        phoneViewTitle.textContent = 'CHAPTERS';
+        let chaptersHtml = '<div style="display:flex; flex-direction:column; gap:8px;">';
+        for (let i = 1; i <= 7; i++) {
+          const m = MISSIONS[i];
+          const isCurrent = (i === STATE.currentLevel);
+          const isDone = (i < STATE.currentLevel);
+          const statusBadge = isCurrent ? '<span style="color:#00f3ff; font-weight:bold;">ACTIVE</span>' : (isDone ? '<span style="color:#39ff14;">DONE</span>' : '<span style="color:#666;">LOCKED</span>');
+          chaptersHtml += `
+            <div style="background:rgba(255,255,255,0.06); padding:8px; border-radius:6px;">
+              <div style="display:flex; justify-content:space-between;">
+                <b>CH ${i}: ${m.name}</b>
+                ${statusBadge}
+              </div>
+              <div style="font-size:11px; color:#aaa; margin:3px 0;">Reward: $${m.reward.toLocaleString()}</div>
+              ${isCurrent ? '<button id="phone-track-btn" style="margin-top:4px; width:100%; background:#ffd700; color:#000; font-weight:bold; border:none; padding:4px; border-radius:4px; cursor:pointer;">📍 TRACK ON GPS</button>' : ''}
+            </div>
+          `;
+        }
+        chaptersHtml += '</div>';
+        phoneViewBody.innerHTML = chaptersHtml;
+        const trackBtn = document.getElementById('phone-track-btn');
+        if (trackBtn) {
+          trackBtn.addEventListener('click', () => {
+            const m = MISSIONS[STATE.currentLevel];
+            if (m && m.beacon) {
+              STATE.customWaypoint = { x: m.beacon.x, z: m.beacon.z };
+              sound.playCashJingle();
+              triggerStunt('📍 MISSION OBJECTIVE TRACKED', 0);
+              togglePhone();
+            }
+          });
+        }
+        break;
+
+      case 'gps':
+        phoneViewTitle.textContent = 'FAST GPS';
+        phoneViewBody.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <button class="fast-gps-btn" data-x="0" data-z="0" style="padding:8px; background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; text-align:left; cursor:pointer;">🏛️ Central Starfish Plaza (0, 0)</button>
+            <button class="fast-gps-btn" data-x="-60" data-z="-60" style="padding:8px; background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; text-align:left; cursor:pointer;">🏢 Downtown Highrises (-60, -60)</button>
+            <button class="fast-gps-btn" data-x="120" data-z="-60" style="padding:8px; background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; text-align:left; cursor:pointer;">🚗 Ocean Drive Chop Shop (120, -60)</button>
+            <button class="fast-gps-btn" data-x="-100" data-z="-80" style="padding:8px; background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; text-align:left; cursor:pointer;">🏨 Palm Hotel Safehouse (-100, -80)</button>
+            <button class="fast-gps-btn" data-x="0" data-z="-120" style="padding:8px; background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; text-align:left; cursor:pointer;">➕ Vice General Hospital (0, -120)</button>
+            <button class="fast-gps-btn" data-x="-120" data-z="120" style="padding:8px; background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; text-align:left; cursor:pointer;">⚓ Port Vice Cargo Docks (-120, 120)</button>
+          </div>
+        `;
+        document.querySelectorAll('.fast-gps-btn').forEach(b => {
+          b.addEventListener('click', (e) => {
+            const x = parseInt(e.currentTarget.getAttribute('data-x'), 10);
+            const z = parseInt(e.currentTarget.getAttribute('data-z'), 10);
+            STATE.customWaypoint = { x, z };
+            sound.playCashJingle();
+            triggerStunt('📍 FAST GPS ROUTED', 0);
+            togglePhone();
+          });
+        });
+        break;
+
+      case 'settings':
+        togglePhone();
+        settingsModal.classList.remove('hidden');
+        break;
+    }
+  }
+
+  document.querySelectorAll('.phone-app').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const app = e.currentTarget.getAttribute('data-app');
+      openPhoneApp(app);
+    });
+  });
+
+  // --- TOP HUD BUTTONS & TOUCH ACTIONS ---
+  const vModeBtn = document.getElementById('vehicle-mode-btn');
+  if (vModeBtn) vModeBtn.addEventListener('click', togglePlayerMode);
+
+  const switchWepBtn = document.getElementById('switch-weapon-btn');
+  if (switchWepBtn) switchWepBtn.addEventListener('click', switchWeapon);
+
+  const touchFBtn = document.getElementById('btn-touch-f');
+  if (touchFBtn) touchFBtn.addEventListener('click', togglePlayerMode);
+
+  const touchFireBtn = document.getElementById('btn-touch-fire');
+  if (touchFireBtn) touchFireBtn.addEventListener('click', fireWeapon);
+
+  // --- ADMIN WORLD-STATE & BROADCAST SYNC (POLLS EVERY 4 SECONDS) ---
+  let lastBroadcastMsg = null;
+  setInterval(() => {
+    fetch('/api/admin/world-state')
+      .then(res => {
+        if (!res.ok) throw new Error('status ' + res.status);
+        return res.json();
+      })
+      .then(data => {
+        if (data.weather && data.weather !== STATE.currentWeather) {
+          applyWeatherPreset(data.weather);
+        }
+        if (data.broadcastAnnouncement && data.broadcastAnnouncement !== lastBroadcastMsg) {
+          lastBroadcastMsg = data.broadcastAnnouncement;
+          triggerStunt('📢 ADMIN: ' + data.broadcastAnnouncement, 0);
+          sound.playMissionSuccess();
+        }
+      })
+      .catch(() => {});
+  }, 4000);
 
   // Start Level 1 Story & Engine
   startLevel(1);

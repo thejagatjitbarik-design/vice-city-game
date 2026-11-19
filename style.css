@@ -1408,3 +1408,316 @@ html, body {
     right: 16px;
   }
 }
+
+/* ==========================================================
+   WEAPON HUD & CROSSHAIR
+   ========================================================== */
+.weapon-hud {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(14, 6, 26, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  padding: 4px 10px;
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+}
+
+#weapon-icon {
+  font-size: 18px;
+}
+
+.weapon-meta {
+  line-height: 1.1;
+}
+
+#weapon-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: #00f0ff;
+  display: block;
+}
+
+#weapon-ammo {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffd700;
+}
+
+.weapon-switch-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.weapon-switch-btn:hover {
+  background: #00f0ff;
+  color: #000;
+}
+
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  color: rgba(0, 240, 255, 0.8);
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 55;
+  text-shadow: 0 0 8px #00f0ff;
+}
+
+/* CONTEXTUAL INTERACTION PROMPT */
+.interaction-prompt {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 4, 20, 0.92);
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  pointer-events: none;
+  z-index: 60;
+  animation: pulseSlow 0.8s infinite alternate;
+}
+
+.key-pill {
+  background: #ffd700;
+  color: #000;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 900;
+}
+
+/* MOBILE ACTION BUTTONS */
+.touch-actions {
+  display: flex;
+  gap: 8px;
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.t-btn-f {
+  background: rgba(0, 240, 255, 0.35);
+  border-color: #00f0ff;
+  color: #fff;
+  font-size: 11px;
+}
+
+.t-btn-fire {
+  background: rgba(255, 0, 80, 0.45);
+  border-color: #ff0055;
+  color: #fff;
+  font-size: 11px;
+}
+
+/* FULL-SCREEN CITY MAP MODAL */
+.map-modal-content {
+  max-width: 720px;
+  background: rgba(10, 4, 22, 0.96);
+  border-color: #00f0ff;
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.45);
+}
+
+.map-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.map-modal-header h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: #00f0ff;
+  letter-spacing: 2px;
+}
+
+.map-modal-header p {
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd700;
+  letter-spacing: 1px;
+}
+
+.map-viewport-wrapper {
+  background: #04020a;
+  border: 2px solid rgba(0, 240, 255, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  text-align: center;
+}
+
+#fullscreen-map-canvas {
+  width: 100%;
+  max-height: 480px;
+  cursor: crosshair;
+}
+
+.map-legend {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 12px;
+  font-size: 11px;
+  color: #ccc;
+  font-weight: 700;
+}
+
+/* SMARTPHONE DEVICE */
+.phone-device {
+  position: absolute;
+  bottom: 25px;
+  right: 25px;
+  width: 270px;
+  height: 480px;
+  background: #000;
+  border: 4px solid #333;
+  border-radius: 36px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 0, 127, 0.3);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUpPhone 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.phone-notch {
+  height: 28px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  border-top-left-radius: 32px;
+  border-top-right-radius: 32px;
+}
+
+.phone-screen {
+  flex: 1;
+  background: radial-gradient(circle at center, #2b0f47, #0a0414);
+  padding: 14px;
+  position: relative;
+  overflow-y: auto;
+}
+
+.phone-app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.phone-app {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.phone-app:hover {
+  background: rgba(255, 0, 127, 0.25);
+  transform: translateY(-2px);
+}
+
+.phone-app .app-icon {
+  font-size: 26px;
+}
+
+.phone-app .app-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.phone-view-container {
+  position: absolute;
+  inset: 0;
+  background: #0b0514;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-view-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.phone-view-header button {
+  background: transparent;
+  border: none;
+  color: #00f0ff;
+  font-weight: 900;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#phone-view-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffd700;
+}
+
+.phone-view-body {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 11px;
+  color: #ddd;
+}
+
+.phone-home-bar {
+  height: 18px;
+  background: #000;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.phone-home-bar::after {
+  content: '';
+  width: 70px;
+  height: 4px;
+  background: #888;
+  border-radius: 2px;
+}
+
+@keyframes slideUpPhone {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
