@@ -43,6 +43,12 @@
           <div class="bar-track"><div id="armor-bar" class="bar-fill armor"></div></div>
         </div>
       </div>
+      <!-- User Profile Badge & Logout -->
+      <div id="user-badge" class="user-badge">
+        <span class="user-icon">👤</span>
+        <span id="user-email-display">GUEST_OUTLAW</span>
+        <button id="auth-toggle-btn" class="auth-btn">LOGIN / OTP</button>
+      </div>
     </div>
 
     <!-- Top Left: District & Radio / Soundtrack -->
@@ -52,6 +58,7 @@
       <div class="hud-buttons-row">
         <button id="radio-btn" class="hud-btn">📻 RADIO: <span id="radio-status">SYNTHWAVE FM</span></button>
         <button id="cam-btn" class="hud-btn">🎥 CAM [C]</button>
+        <button id="reset-btn" class="hud-btn">🔄 UNSTUCK [R]</button>
       </div>
     </div>
 
@@ -63,6 +70,18 @@
       </div>
       <div id="mission-instruction">Drive to the glowing marker at Ocean Bank</div>
       <div id="mission-sub-status">DISTANCE: <span id="mission-dist">120m</span></div>
+    </div>
+
+    <!-- Thriller Speed Bomb Warning Banner (Mission 2) -->
+    <div id="bomb-banner" class="bomb-banner hidden">
+      <div class="bomb-icon">💣</div>
+      <div class="bomb-info">
+        <div class="bomb-title">⚠️ SPEED BOMB ARMED!</div>
+        <div class="bomb-subtitle">MAINTAIN SPEED OVER 45 MPH!</div>
+      </div>
+      <div class="bomb-timer-box">
+        <span id="bomb-countdown">04.0s</span>
+      </div>
     </div>
 
     <!-- Incoming Story Phone Call / Boss Dialogue (GTA Style) -->
@@ -174,6 +193,61 @@
     <h1 id="death-title">BUSTED</h1>
     <p id="death-subtitle">The Vice City Police confiscated $1,000</p>
     <button id="respawn-btn" class="respawn-btn">PAY BAIL & RESPAWN</button>
+  </div>
+
+  <!-- Authentication & Email OTP Modal -->
+  <div id="auth-modal" class="modal">
+    <div class="modal-content auth-content">
+      <div class="auth-header">
+        <h2 class="auth-title">VICE OUTLAWS</h2>
+        <p class="auth-subtitle">UNDERWORLD NETWORK ACCESS</p>
+      </div>
+
+      <!-- Auth Mode Tabs -->
+      <div class="auth-tabs">
+        <button id="tab-register" class="auth-tab active">REGISTER</button>
+        <button id="tab-login" class="auth-tab">LOGIN</button>
+      </div>
+
+      <div class="auth-form">
+        <div class="input-group">
+          <label for="auth-email">EMAIL ID</label>
+          <input type="email" id="auth-email" placeholder="player@gmail.com" required>
+        </div>
+
+        <div class="input-group">
+          <label for="auth-password">PASSWORD</label>
+          <input type="password" id="auth-password" placeholder="••••••••" required>
+        </div>
+
+        <!-- OTP Request Button -->
+        <div class="otp-request-row">
+          <button id="send-otp-btn" class="modal-btn secondary-btn">📨 SEND 6-DIGIT OTP</button>
+        </div>
+
+        <!-- OTP Input Area -->
+        <div class="input-group" id="otp-group">
+          <label for="auth-otp">ENTER 6-DIGIT OTP</label>
+          <div class="otp-input-wrapper">
+            <input type="text" id="auth-otp" maxlength="6" placeholder="123456">
+            <button id="paste-otp-btn" class="quick-otp-btn">AUTO-FILL</button>
+          </div>
+        </div>
+
+        <!-- Status & Live OTP Notification Box -->
+        <div id="auth-status-msg" class="auth-status hidden"></div>
+        <div id="otp-live-display" class="otp-live-box hidden">
+          <span class="otp-badge">🔐 SECURITY ALERT</span>
+          <p>Your 6-digit verification code is: <b id="generated-otp-val">------</b></p>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="modal-buttons">
+          <button id="auth-submit-btn" class="modal-btn gold-btn">VERIFY OTP & ENTER VICE CITY</button>
+          <button id="auth-guest-btn" class="modal-btn guest-btn">PLAY AS GUEST OUTLAW</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="game.js"></script>

@@ -1,0 +1,14 @@
+{
+  "name": "vice-outlaws",
+  "version": "1.2.0",
+  "description": "3D Open-World GTA-style Game with Levels, Thrillers & OTP Auth",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.13"
+  }
+}

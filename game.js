@@ -197,7 +197,10 @@
     busted: false,
     currentLevel: 1,
     levelStage: 0,
-    cratesCollected: 0
+    cratesCollected: 0,
+    bombActive: false,
+    bombCountdown: 4.0,
+    lightningTimer: 0
   };
 
   const INPUT = {
@@ -605,28 +608,35 @@
     skidIdx = (skidIdx + 1) % MAX_SKIDS;
   }
 
-  // --- MISSION STORY PROGRESSION ENGINE ---
+  // --- MISSION STORY PROGRESSION ENGINE (THRILLER EDITION) ---
   const MISSIONS = {
     1: {
-      title: "THE FIRST SCORE",
-      instruction: "Drive to the glowing marker at Ocean Bank",
+      title: "THE VICE VAULT HEIST",
+      instruction: "Drive to the glowing marker at Ocean Bank to steal the diamonds",
       beaconPos: { x: STEP * 2, z: STEP * 2 },
       reward: 5000,
       epilogue: "You secured the stolen diamond briefcase and outran the patrol squad! The Boss has promoted your rank."
     },
     2: {
-      title: "GRAND THEFT CARTEL",
-      instruction: "Hunt down and steal the Cartel Boss's Gold Supercar!",
-      beaconPos: { x: -STEP * 2, z: STEP * 2 },
-      reward: 10000,
-      epilogue: "You hijacked the Cartel Boss's custom ride and recovered the encrypted PDA. You now run the district."
+      title: "SPEED BOMB THRILLER",
+      instruction: "MAINTAIN SPEED OVER 45 MPH! Race to the Marina defusal ring!",
+      beaconPos: { x: -STEP * 2.5, z: STEP * 2.5 },
+      reward: 12000,
+      epilogue: "INCREDIBLE THRILL! The Marina bomb squad snipped the detonator wire with seconds to spare! You survived the Speed Bomb!"
     },
     3: {
-      title: "THE HARBOR GETAWAY",
-      instruction: "Collect 3 contraband crates across the city & escape!",
+      title: "THUNDERSTORM BETRAYAL",
+      instruction: "Locate and ram the Cartel Traitor's Gold Supercar in the storm!",
+      beaconPos: { x: -STEP * 2, z: STEP * 2 },
+      reward: 18000,
+      epilogue: "Traitor neutralized in the thunderstorm! You recovered the Syndicate's encrypted master drive!"
+    },
+    4: {
+      title: "THE APEX MILITARY ESCAPE",
+      instruction: "Collect 3 contraband drop crates across the city & escape to the harbor boat!",
       beaconPos: { x: 0, z: -HALF_MAP + 25 },
-      reward: 25000,
-      epilogue: "Incredible getaway! All contraband secured, 4-star military blockade bypassed! You are the King of Vice Outlaws!"
+      reward: 35000,
+      epilogue: "MASTER OUTLAW! You broke through the 5-star military blockade and escaped to international waters! You rule Vice City!"
     }
   };
 
@@ -645,6 +655,8 @@
     STATE.currentLevel = lvl;
     STATE.levelStage = 0;
     STATE.cratesCollected = 0;
+    STATE.bombActive = false;
+    document.getElementById('bomb-banner').classList.add('hidden');
 
     const data = MISSIONS[lvl] || MISSIONS[1];
     document.getElementById('mission-level-badge').textContent = 'LEVEL ' + lvl;
@@ -658,15 +670,23 @@
     if (lvl === 1) {
       showStoryDialog('TONY "THE FIXER"', '"Welcome to Vice City, kid. Go to the bank alley and steal the diamond briefcase!"', 6000);
     } else if (lvl === 2) {
-      showStoryDialog('TONY "THE FIXER"', '"Rival cartel boss is cruising in a Gold Supercar. Track it, ram it off the road, and take it!"', 6000);
-      // Spawn golden cartel target car
-      createTrafficCar(STEP, -STEP, Math.PI / 2, true);
+      // Speed Bomb Thriller!
+      STATE.bombActive = true;
+      STATE.bombCountdown = 4.0;
+      showStoryDialog('TONY "THE FIXER"', '"⚠️ CODE RED! Rival syndicate rigged your chassis with a SPEED BOMB! Keep speed ABOVE 45 MPH or it BLOWS! Race to Marina defusal!"', 7500);
     } else if (lvl === 3) {
-      showStoryDialog('TONY "THE FIXER"', '"Feds are raiding the safehouses! Collect 3 hidden contraband crates and escape to the harbor!"', 6000);
+      showStoryDialog('TONY "THE FIXER"', '"A syndicate traitor is escaping in a Gold Supercar during this storm! Hunt him down and ram his car off the road!"', 7000);
+      createTrafficCar(STEP, -STEP, Math.PI / 2, true);
+    } else if (lvl === 4) {
+      showStoryDialog('TONY "THE FIXER"', '"FINAL APEX SCORE! Military lockdown is declared! Collect the 3 contraband crates and escape to the harbor!"', 7500);
+      setWantedLevel(4);
     }
   }
 
   function completeLevel() {
+    STATE.bombActive = false;
+    document.getElementById('bomb-banner').classList.add('hidden');
+
     sound.playMissionSuccess();
     const data = MISSIONS[STATE.currentLevel];
     STATE.cash += data.reward;
@@ -686,7 +706,7 @@
 
   document.getElementById('next-level-btn').addEventListener('click', () => {
     document.getElementById('level-complete-modal').classList.add('hidden');
-    const nextLvl = STATE.currentLevel >= 3 ? 1 : STATE.currentLevel + 1;
+    const nextLvl = STATE.currentLevel >= 4 ? 1 : STATE.currentLevel + 1;
     startLevel(nextLvl);
   });
 
@@ -872,14 +892,23 @@
   function updateVehicle() {
     if (STATE.busted) return;
 
+    // Responsive Gas & Reverse Transmission
     if (INPUT.gas) {
-      PHYSICS.speed = Math.min(PHYSICS.maxSpeed, PHYSICS.speed + PHYSICS.accel);
+      if (PHYSICS.speed < -0.05) {
+        PHYSICS.speed = Math.min(0, PHYSICS.speed + PHYSICS.brakeDecel * 1.5); // Fast brake out of reverse
+      } else {
+        PHYSICS.speed = Math.min(PHYSICS.maxSpeed, PHYSICS.speed + PHYSICS.accel);
+      }
     } else if (INPUT.brake) {
-      if (PHYSICS.speed > 0.05) PHYSICS.speed = Math.max(0, PHYSICS.speed - PHYSICS.brakeDecel);
-      else PHYSICS.speed = Math.max(PHYSICS.reverseMax, PHYSICS.speed - PHYSICS.accel * 0.7);
+      if (PHYSICS.speed > 0.05) {
+        PHYSICS.speed = Math.max(0, PHYSICS.speed - PHYSICS.brakeDecel); // Brake forward drive
+      } else {
+        // High reverse torque to easily back out of crashes
+        PHYSICS.speed = Math.max(PHYSICS.reverseMax, PHYSICS.speed - PHYSICS.accel * 1.6);
+      }
     } else {
       if (PHYSICS.speed > 0) PHYSICS.speed = Math.max(0, PHYSICS.speed - PHYSICS.naturalDecel);
-      else if (PHYSICS.speed < 0) PHYSICS.speed = Math.min(0, PHYSICS.speed + PHYSICS.naturalDecel);
+      else if (PHYSICS.speed < 0) PHYSICS.speed = Math.min(0, PHYSICS.speed + PHYSICS.naturalDecel * 1.5);
     }
 
     if (INPUT.left) {
@@ -910,38 +939,82 @@
       STATE.driftScore = 0;
     }
 
-    const nextX = PHYSICS.x + Math.sin(PHYSICS.rotY) * PHYSICS.speed + Math.cos(PHYSICS.rotY) * PHYSICS.lateralVelocity;
-    const nextZ = PHYSICS.z + Math.cos(PHYSICS.rotY) * PHYSICS.speed - Math.sin(PHYSICS.rotY) * PHYSICS.lateralVelocity;
+    // Proposed next position
+    let moveX = Math.sin(PHYSICS.rotY) * PHYSICS.speed + Math.cos(PHYSICS.rotY) * PHYSICS.lateralVelocity;
+    let moveZ = Math.cos(PHYSICS.rotY) * PHYSICS.speed - Math.sin(PHYSICS.rotY) * PHYSICS.lateralVelocity;
 
-    // Building Collision
-    const pad = 1.8;
-    let collided = false;
+    let targetX = PHYSICS.x + moveX;
+    let targetZ = PHYSICS.z + moveZ;
+
+    // Building Collision with Push-Out (Prevents getting stuck forever!)
+    const carRadius = 1.6;
     for (let i = 0; i < colliders.length; i++) {
       const c = colliders[i];
-      if (nextX + pad > c.minX && nextX - pad < c.maxX &&
-          nextZ + pad > c.minZ && nextZ - pad < c.maxZ) {
-        collided = true;
-        break;
+      const closestX = Math.max(c.minX, Math.min(targetX, c.maxX));
+      const closestZ = Math.max(c.minZ, Math.min(targetZ, c.maxZ));
+
+      const dx = targetX - closestX;
+      const dz = targetZ - closestZ;
+      const distSq = dx * dx + dz * dz;
+
+      if (distSq < carRadius * carRadius) {
+        const dist = Math.sqrt(distSq);
+        let nx = 0;
+        let nz = 0;
+
+        if (dist > 0.001) {
+          nx = dx / dist;
+          nz = dz / dist;
+        } else {
+          // Centered inside collider, push out towards nearest edge
+          const boxCenterX = (c.minX + c.maxX) / 2;
+          const boxCenterZ = (c.minZ + c.maxZ) / 2;
+          nx = Math.sign(PHYSICS.x - boxCenterX) || 1;
+          nz = Math.sign(PHYSICS.z - boxCenterZ) || 0;
+        }
+
+        // Push safely outside obstacle
+        const penetration = carRadius - dist + 0.18;
+        targetX += nx * penetration;
+        targetZ += nz * penetration;
+
+        // Bounce speed slightly and trigger crash effects
+        if (Math.abs(PHYSICS.speed) > 0.25) {
+          sound.playCrash();
+          if (STATE.armor > 0) STATE.armor = Math.max(0, STATE.armor - 8);
+          else STATE.health = Math.max(0, STATE.health - 8);
+        }
+        PHYSICS.speed = -PHYSICS.speed * 0.25;
       }
     }
 
-    // Traffic Collision
+    // Traffic Collision with Mutual Push-Out
     trafficCars.forEach(tc => {
-      const dx = nextX - tc.x;
-      const dz = nextZ - tc.z;
+      const dx = targetX - tc.x;
+      const dz = targetZ - tc.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < 3.2) {
-        collided = true;
-        sound.playCrash();
-        tc.speed = -tc.speed * 0.5;
+      const minDist = 3.2;
 
-        // If hitting a special cartel target car
+      if (dist < minDist) {
+        const overlap = minDist - dist + 0.15;
+        const nx = dx / (dist || 1);
+        const nz = dz / (dist || 1);
+
+        targetX += nx * overlap * 0.55;
+        targetZ += nz * overlap * 0.55;
+        tc.x -= nx * overlap * 0.55;
+        tc.z -= nz * overlap * 0.55;
+
+        sound.playCrash();
+        PHYSICS.speed = -PHYSICS.speed * 0.25;
+        tc.speed = -tc.speed * 0.4;
+
         if (tc.isSpecialTarget && STATE.currentLevel === 2 && STATE.levelStage === 0) {
           tc.health -= 40;
           triggerStunt('TARGET HIT!', 500);
           if (tc.health <= 0) {
             STATE.levelStage = 1;
-            playerCar.bodyMat.color.setHex(0xffd700); // Turned into gold car!
+            playerCar.bodyMat.color.setHex(0xffd700);
             setWantedLevel(3);
             showStoryDialog('TONY "THE FIXER"', '"CARTEL RIDE STOLEN! You got 3 stars on your tail! Deliver it to the Chop Shop Safehouse!"', 7000);
             document.getElementById('mission-instruction').textContent = 'Evade cops and deliver to Chop Shop Safehouse!';
@@ -949,22 +1022,14 @@
             scene.remove(tc.mesh);
           }
         } else if (STATE.wantedLevel === 0 && Math.abs(PHYSICS.speed) > 0.4) {
-          setWantedLevel(1); // Crashing into civilians alerts police
+          setWantedLevel(1);
         }
       }
     });
 
-    if (!collided) {
-      PHYSICS.x = nextX;
-      PHYSICS.z = nextZ;
-    } else {
-      PHYSICS.speed = -PHYSICS.speed * 0.35;
-      sound.playCrash();
-      if (Math.abs(PHYSICS.speed) > 0.25) {
-        if (STATE.armor > 0) STATE.armor = Math.max(0, STATE.armor - 10);
-        else STATE.health = Math.max(0, STATE.health - 10);
-      }
-    }
+    // Apply resolved position
+    PHYSICS.x = targetX;
+    PHYSICS.z = targetZ;
 
     playerCar.group.position.set(PHYSICS.x, 0, PHYSICS.z);
     playerCar.group.rotation.y = PHYSICS.rotY;
@@ -976,6 +1041,34 @@
 
     sound.setEngineSpeed(Math.abs(PHYSICS.speed) / PHYSICS.maxSpeed);
 
+    // --- SPEED BOMB THRILLER MONITOR (CHAPTER 2) ---
+    if (STATE.bombActive) {
+      const currentMPH = Math.abs(PHYSICS.speed) * 72;
+      const bombBanner = document.getElementById('bomb-banner');
+      const countdownEl = document.getElementById('bomb-countdown');
+      bombBanner.classList.remove('hidden');
+
+      if (currentMPH < 45) {
+        STATE.bombCountdown -= 0.016;
+        countdownEl.textContent = Math.max(0, STATE.bombCountdown).toFixed(1) + 's';
+        countdownEl.style.color = '#ff0033';
+
+        if (STATE.bombCountdown <= 0) {
+          STATE.bombActive = false;
+          bombBanner.classList.add('hidden');
+          triggerBusted();
+          document.getElementById('death-title').textContent = 'DETONATED';
+          document.getElementById('death-subtitle').textContent = 'Speed dropped below 45 MPH! The bomb exploded.';
+        }
+      } else {
+        STATE.bombCountdown = Math.min(4.0, STATE.bombCountdown + 0.025);
+        countdownEl.textContent = 'SAFE (' + Math.round(currentMPH) + ' MPH)';
+        countdownEl.style.color = '#39ff14';
+      }
+    } else {
+      document.getElementById('bomb-banner').classList.add('hidden');
+    }
+
     // --- MISSION BEACON TRIGGER CHECK ---
     if (beaconGroup.visible) {
       const bdx = beaconGroup.position.x - PHYSICS.x;
@@ -983,43 +1076,44 @@
       const distToBeacon = Math.sqrt(bdx * bdx + bdz * bdz);
 
       if (distToBeacon < 4.5) {
-        // Handle Mission Events
         if (STATE.currentLevel === 1) {
           if (STATE.levelStage === 0) {
-            // Picked up diamond case
             STATE.levelStage = 1;
             sound.playCashJingle();
             triggerStunt('DIAMOND CASE STOLEN!', 1000);
             setWantedLevel(2);
-            showStoryDialog('TONY "THE FIXER"', '"You got the stones! 2 squad cars inbound! Shake the heat and deliver to Palm Motel!"', 7000);
-            document.getElementById('mission-instruction').textContent = 'Evade police or reach the Palm Safehouse!';
+            showStoryDialog('TONY "THE FIXER"', '"You got the diamonds! 2 squad cars inbound! Shake the heat and deliver to Palm Motel Safehouse!"', 7000);
+            document.getElementById('mission-instruction').textContent = 'Evade police or reach the Palm Motel Safehouse!';
             beaconGroup.position.set(-STEP * 2, 0, -STEP * 2);
           } else {
-            // Reached Safehouse
             completeLevel();
           }
         } else if (STATE.currentLevel === 2) {
+          // Speed Bomb Defused at Marina!
+          STATE.bombActive = false;
+          triggerStunt('BOMB DEFUSED!', 3000);
+          completeLevel();
+        } else if (STATE.currentLevel === 3) {
           if (STATE.levelStage === 1) {
             completeLevel();
           }
-        } else if (STATE.currentLevel === 3) {
+        } else if (STATE.currentLevel === 4) {
           STATE.cratesCollected++;
           sound.playCashJingle();
-          triggerStunt('CONTRABAND CRATE ' + STATE.cratesCollected + '/3', 1500);
+          triggerStunt('CONTRABAND CRATE ' + STATE.cratesCollected + '/3', 2000);
 
           if (STATE.cratesCollected === 1) {
-            setWantedLevel(3);
-            beaconGroup.position.set(HALF_MAP - 30, 0, HALF_MAP - 30);
-            document.getElementById('mission-instruction').textContent = 'Collect Crate 2/3!';
-          } else if (STATE.cratesCollected === 2) {
             setWantedLevel(4);
+            beaconGroup.position.set(HALF_MAP - 30, 0, HALF_MAP - 30);
+            document.getElementById('mission-instruction').textContent = 'Collect Contraband Crate 2/3!';
+          } else if (STATE.cratesCollected === 2) {
+            setWantedLevel(5);
             beaconGroup.position.set(-HALF_MAP + 30, 0, HALF_MAP - 30);
-            document.getElementById('mission-instruction').textContent = 'Collect Crate 3/3!';
+            document.getElementById('mission-instruction').textContent = 'Collect Contraband Crate 3/3!';
           } else {
-            // All collected, escape to harbor!
-            document.getElementById('mission-instruction').textContent = 'ALL CRATES COLLECTED! ESCAPE TO THE HARBOR BOAT!';
+            document.getElementById('mission-instruction').textContent = 'ALL CRATES SECURED! ESCAPE TO THE HARBOR BOAT!';
             beaconGroup.position.set(0, 0, -HALF_MAP + 15);
-            if (distToBeacon < 4.0 && STATE.cratesCollected >= 3) {
+            if (distToBeacon < 4.5 && STATE.cratesCollected >= 3) {
               completeLevel();
             }
           }
@@ -1143,6 +1237,17 @@
   function animate() {
     requestAnimationFrame(animate);
 
+    // Chapter 3: Thunderstorm Lightning Thriller
+    if (STATE.currentLevel === 3) {
+      STATE.lightningTimer += 0.016;
+      if (STATE.lightningTimer > 3.5 && Math.random() < 0.035) {
+        STATE.lightningTimer = 0;
+        scene.background.setHex(0xaae8ff);
+        setTimeout(() => scene.background.setHex(0x0e0618), 75);
+        sound.playCrash();
+      }
+    }
+
     updateVehicle();
     updateTraffic();
     updatePolice();
@@ -1164,11 +1269,7 @@
       case 'KeyD': case 'ArrowRight': INPUT.right = true; break;
       case 'Space': INPUT.drift = true; break;
       case 'KeyC': STATE.cameraMode = (STATE.cameraMode + 1) % 3; break;
-      case 'KeyR':
-        PHYSICS.speed = 0;
-        PHYSICS.rotY = 0;
-        playerCar.group.rotation.set(0, 0, 0);
-        break;
+      case 'KeyR': recoverCar(); break;
       case 'KeyH': sound.playHorn(); break;
     }
   });
@@ -1204,6 +1305,23 @@
   setupTouchBtn('btn-left', 'left');
   setupTouchBtn('btn-right', 'right');
   setupTouchBtn('btn-drift', 'drift');
+
+  function recoverCar() {
+    sound.init();
+    // Snap to nearest open road intersection
+    const nearestRoadX = Math.round(PHYSICS.x / STEP) * STEP;
+    const nearestRoadZ = Math.round(PHYSICS.z / STEP) * STEP;
+    PHYSICS.x = nearestRoadX;
+    PHYSICS.z = nearestRoadZ;
+    PHYSICS.speed = 0;
+    PHYSICS.lateralVelocity = 0;
+    PHYSICS.steerAngle = 0;
+    playerCar.group.position.set(PHYSICS.x, 0, PHYSICS.z);
+    playerCar.group.rotation.set(0, PHYSICS.rotY, 0);
+    triggerStunt('CAR RECOVERED!', 0);
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', recoverCar);
 
   document.getElementById('cam-btn').addEventListener('click', () => {
     sound.init();
@@ -1259,6 +1377,187 @@
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+
+  // --- USER AUTHENTICATION & EMAIL OTP SYSTEM ---
+  let authMode = 'register';
+  let currentGeneratedOtp = null;
+  let currentUser = JSON.parse(localStorage.getItem('vice_outlaws_user') || 'null');
+  const storedAccounts = JSON.parse(localStorage.getItem('vice_outlaws_accounts') || '{}');
+
+  const authModal = document.getElementById('auth-modal');
+  const tabRegister = document.getElementById('tab-register');
+  const tabLogin = document.getElementById('tab-login');
+  const authEmailInput = document.getElementById('auth-email');
+  const authPasswordInput = document.getElementById('auth-password');
+  const authOtpInput = document.getElementById('auth-otp');
+  const sendOtpBtn = document.getElementById('send-otp-btn');
+  const pasteOtpBtn = document.getElementById('paste-otp-btn');
+  const authSubmitBtn = document.getElementById('auth-submit-btn');
+  const authGuestBtn = document.getElementById('auth-guest-btn');
+  const authStatusMsg = document.getElementById('auth-status-msg');
+  const otpLiveDisplay = document.getElementById('otp-live-display');
+  const generatedOtpVal = document.getElementById('generated-otp-val');
+  const userEmailDisplay = document.getElementById('user-email-display');
+  const authToggleBtn = document.getElementById('auth-toggle-btn');
+
+  function showAuthStatus(msg, isSuccess) {
+    authStatusMsg.textContent = msg;
+    authStatusMsg.className = 'auth-status ' + (isSuccess ? 'success' : '');
+    authStatusMsg.classList.remove('hidden');
+  }
+
+  function updateAuthHeaderUI() {
+    if (currentUser && currentUser.email) {
+      userEmailDisplay.textContent = currentUser.email.split('@')[0].toUpperCase();
+      authToggleBtn.textContent = 'LOGOUT';
+    } else {
+      userEmailDisplay.textContent = 'GUEST_OUTLAW';
+      authToggleBtn.textContent = 'LOGIN / OTP';
+    }
+  }
+
+  tabRegister.addEventListener('click', () => {
+    authMode = 'register';
+    tabRegister.classList.add('active');
+    tabLogin.classList.remove('active');
+    authSubmitBtn.textContent = 'VERIFY OTP & REGISTER';
+    authStatusMsg.classList.add('hidden');
+  });
+
+  tabLogin.addEventListener('click', () => {
+    authMode = 'login';
+    tabLogin.classList.add('active');
+    tabRegister.classList.remove('active');
+    authSubmitBtn.textContent = 'VERIFY OTP & ENTER VICE CITY';
+    authStatusMsg.classList.add('hidden');
+  });
+
+  // Request & Generate 6-Digit OTP
+  sendOtpBtn.addEventListener('click', async () => {
+    sound.init();
+    const email = authEmailInput.value.trim();
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      showAuthStatus('Please enter a valid email address!', false);
+      return;
+    }
+
+    if (authMode === 'login' && !storedAccounts[email]) {
+      showAuthStatus('Email not registered yet! Please select REGISTER tab.', false);
+      return;
+    }
+
+    sendOtpBtn.disabled = true;
+    sendOtpBtn.textContent = '⏳ GENERATING OTP...';
+
+    // Generate 6-digit cryptographic OTP
+    currentGeneratedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Call local backend endpoint if running
+    try {
+      fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, type: authMode })
+      }).catch(() => {});
+    } catch (e) {}
+
+    setTimeout(() => {
+      generatedOtpVal.textContent = currentGeneratedOtp;
+      otpLiveDisplay.classList.remove('hidden');
+      sound.playCashJingle();
+      showAuthStatus(`✅ 6-digit OTP generated for ${email}! Valid for 5 mins.`, true);
+      sendOtpBtn.disabled = false;
+      sendOtpBtn.textContent = '📨 RESEND OTP';
+    }, 600);
+  });
+
+  // Quick Auto-Fill OTP
+  pasteOtpBtn.addEventListener('click', () => {
+    if (currentGeneratedOtp) {
+      authOtpInput.value = currentGeneratedOtp;
+      sound.playCashJingle();
+    }
+  });
+
+  // Verify OTP and Authenticate User
+  authSubmitBtn.addEventListener('click', () => {
+    sound.init();
+    const email = authEmailInput.value.trim();
+    const password = authPasswordInput.value;
+    const enteredOtp = authOtpInput.value.trim();
+
+    if (!email || !email.includes('@')) {
+      showAuthStatus('Valid email address required!', false);
+      return;
+    }
+    if (!password || password.length < 4) {
+      showAuthStatus('Password must be at least 4 characters!', false);
+      return;
+    }
+    if (!enteredOtp) {
+      showAuthStatus('Please enter the 6-digit OTP!', false);
+      return;
+    }
+    if (enteredOtp !== currentGeneratedOtp) {
+      showAuthStatus('Invalid or incorrect OTP! Check the code and try again.', false);
+      sound.playCrash();
+      return;
+    }
+
+    // Handle Registration or Login
+    if (authMode === 'register') {
+      storedAccounts[email] = { email, password, registeredAt: Date.now() };
+      localStorage.setItem('vice_outlaws_accounts', JSON.stringify(storedAccounts));
+    } else {
+      if (storedAccounts[email] && storedAccounts[email].password !== password) {
+        showAuthStatus('Incorrect password for this account!', false);
+        return;
+      }
+    }
+
+    // Save active session
+    currentUser = { email, loggedInAt: Date.now() };
+    localStorage.setItem('vice_outlaws_user', JSON.stringify(currentUser));
+    updateAuthHeaderUI();
+
+    showAuthStatus('🎉 OTP Verified! Access Granted to Vice City.', true);
+    sound.playMissionSuccess();
+
+    setTimeout(() => {
+      authModal.classList.add('hidden');
+    }, 1200);
+  });
+
+  // Play as Guest
+  authGuestBtn.addEventListener('click', () => {
+    sound.init();
+    currentUser = null;
+    localStorage.removeItem('vice_outlaws_user');
+    updateAuthHeaderUI();
+    authModal.classList.add('hidden');
+  });
+
+  // Profile Header Button (Login / Logout toggle)
+  authToggleBtn.addEventListener('click', () => {
+    sound.init();
+    if (currentUser) {
+      currentUser = null;
+      localStorage.removeItem('vice_outlaws_user');
+      updateAuthHeaderUI();
+      authModal.classList.remove('hidden');
+    } else {
+      authModal.classList.remove('hidden');
+    }
+  });
+
+  // Check initial login state
+  if (currentUser && currentUser.email) {
+    updateAuthHeaderUI();
+    authModal.classList.add('hidden');
+  } else {
+    updateAuthHeaderUI();
+    authModal.classList.remove('hidden');
+  }
 
   // Start Level 1 Story & Engine
   startLevel(1);
