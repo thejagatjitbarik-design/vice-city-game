@@ -49,8 +49,43 @@
     <div class="hud-top-left">
       <div class="game-logo">VICE OUTLAWS</div>
       <div class="district-name" id="district-text">OCEAN DRIVE</div>
-      <button id="radio-btn" class="hud-btn">📻 RADIO: <span id="radio-status">SYNTHWAVE FM</span></button>
-      <button id="cam-btn" class="hud-btn">🎥 CAM [C]</button>
+      <div class="hud-buttons-row">
+        <button id="radio-btn" class="hud-btn">📻 RADIO: <span id="radio-status">SYNTHWAVE FM</span></button>
+        <button id="cam-btn" class="hud-btn">🎥 CAM [C]</button>
+      </div>
+    </div>
+
+    <!-- Active Mission & Story HUD (Center Top) -->
+    <div id="mission-banner">
+      <div class="mission-header">
+        <span id="mission-level-badge">LEVEL 1</span>
+        <span id="mission-name">THE FIRST SCORE</span>
+      </div>
+      <div id="mission-instruction">Drive to the glowing marker at Ocean Bank</div>
+      <div id="mission-sub-status">DISTANCE: <span id="mission-dist">120m</span></div>
+    </div>
+
+    <!-- Incoming Story Phone Call / Boss Dialogue (GTA Style) -->
+    <div id="dialog-box" class="dialog-box hidden">
+      <div class="caller-avatar">📞</div>
+      <div class="caller-content">
+        <div class="caller-name" id="dialog-caller">TONY "THE FIXER"</div>
+        <div class="caller-msg" id="dialog-message">"Listen kid, grab the stolen diamonds from the bank alley before the heat arrives!"</div>
+      </div>
+    </div>
+
+    <!-- Level Complete / Next Level Modal Screen -->
+    <div id="level-complete-modal" class="modal hidden">
+      <div class="modal-content level-up-content">
+        <h1 class="level-up-title">LEVEL PASSED!</h1>
+        <h2 id="completed-level-name">THE FIRST SCORE</h2>
+        <div class="reward-box">
+          <p>REWARD EARNED:</p>
+          <div class="reward-amount" id="level-reward-val">+$5,000</div>
+        </div>
+        <p class="story-epilogue" id="level-epilogue">You secured the diamonds and lost the cops. The Boss has another job for you.</p>
+        <button id="next-level-btn" class="modal-btn gold-btn">START NEXT LEVEL ▶</button>
+      </div>
     </div>
 
     <!-- Action & Stunt Popups Center Screen -->

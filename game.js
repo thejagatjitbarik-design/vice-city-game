@@ -1,10 +1,10 @@
-// VICE OUTLAWS - 3D Open World Web & Mobile Game Engine
-// Built with Three.js & Web Audio API
+// VICE OUTLAWS - Action, Traffic, Story & Mission System
+// Ultra-Optimized 3D Open World Engine with Levels & Progression
 
 (function() {
   'use strict';
 
-  // --- AUDIO SYNTHESIZER (ZERO ASSET DEPENDENCY) ---
+  // --- AUDIO SYNTHESIZER ---
   class SoundEngine {
     constructor() {
       this.ctx = null;
@@ -14,9 +14,8 @@
       this.radioInterval = null;
       this.engineOsc = null;
       this.engineGain = null;
-      this.sirenOsc = null;
-      this.sirenGain = null;
-      this.sirenStep = 0;
+      this.lastEngineUpdate = 0;
+      this.tireCooldown = 0;
     }
 
     init() {
@@ -26,55 +25,57 @@
         this.ctx = new AudioContext();
         this.initialized = true;
 
-        // Engine sound synth
         this.engineOsc = this.ctx.createOscillator();
         this.engineOsc.type = 'sawtooth';
         this.engineGain = this.ctx.createGain();
-        this.engineGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+        this.engineGain.gain.setValueAtTime(0.025, this.ctx.currentTime);
 
         const engineFilter = this.ctx.createBiquadFilter();
         engineFilter.type = 'lowpass';
-        engineFilter.frequency.setValueAtTime(350, this.ctx.currentTime);
+        engineFilter.frequency.setValueAtTime(260, this.ctx.currentTime);
 
         this.engineOsc.connect(engineFilter);
         engineFilter.connect(this.engineGain);
         this.engineGain.connect(this.ctx.destination);
         this.engineOsc.start();
 
-        // Start Synthwave Radio
         this.startRadio();
       } catch (e) {
-        console.warn('Audio not allowed or supported yet', e);
+        console.warn('Audio unlock pending user gesture', e);
       }
     }
 
     setEngineSpeed(speedRatio) {
       if (!this.initialized || !this.engineOsc) return;
-      const baseFreq = 45;
-      const targetFreq = baseFreq + speedRatio * 180;
+      const now = performance.now();
+      if (now - this.lastEngineUpdate < 35) return;
+      this.lastEngineUpdate = now;
+
+      const baseFreq = 42;
+      const targetFreq = baseFreq + speedRatio * 170;
       this.engineOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.08);
-      this.engineGain.gain.setTargetAtTime(0.03 + speedRatio * 0.05, this.ctx.currentTime, 0.08);
+      this.engineGain.gain.setTargetAtTime(0.015 + speedRatio * 0.04, this.ctx.currentTime, 0.08);
     }
 
     playTireScreech() {
       if (!this.initialized) return;
-      const bufferSize = this.ctx.sampleRate * 0.15;
+      if (Date.now() - this.tireCooldown < 120) return;
+      this.tireCooldown = Date.now();
+
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
+      for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() * 2 - 1) * 0.5;
       const whiteNoise = this.ctx.createBufferSource();
       whiteNoise.buffer = buffer;
 
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1400, this.ctx.currentTime);
-      filter.Q.setValueAtTime(5, this.ctx.currentTime);
+      filter.frequency.setValueAtTime(1250, this.ctx.currentTime);
 
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
 
       whiteNoise.connect(filter);
       filter.connect(gain);
@@ -84,138 +85,121 @@
 
     playCrash() {
       if (!this.initialized) return;
-      const bufferSize = this.ctx.sampleRate * 0.35;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.08));
-      }
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(260, this.ctx.currentTime);
-
+      const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(25, this.ctx.currentTime + 0.16);
 
-      noise.connect(filter);
-      filter.connect(gain);
+      gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.16);
+
+      osc.connect(gain);
       gain.connect(this.ctx.destination);
-      noise.start();
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.17);
     }
 
     playCashJingle() {
       if (!this.initialized) return;
-      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+      osc.frequency.setValueAtTime(1174, this.ctx.currentTime + 0.09);
+
+      gain.gain.setValueAtTime(0.09, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.24);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.25);
+    }
+
+    playMissionSuccess() {
+      if (!this.initialized) return;
+      const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // C, E, G, C, E fanfare
       notes.forEach((freq, idx) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.06);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.09);
 
-        gain.gain.setValueAtTime(0.08, this.ctx.currentTime + idx * 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.06 + 0.2);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime + idx * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.09 + 0.3);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        osc.start(this.ctx.currentTime + idx * 0.06);
-        osc.stop(this.ctx.currentTime + idx * 0.06 + 0.22);
+        osc.start(this.ctx.currentTime + idx * 0.09);
+        osc.stop(this.ctx.currentTime + idx * 0.09 + 0.32);
       });
     }
 
     playHorn() {
       if (!this.initialized) return;
-      const osc1 = this.ctx.createOscillator();
-      const osc2 = this.ctx.createOscillator();
+      const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc1.frequency.setValueAtTime(349.23, this.ctx.currentTime); // F4
-      osc2.frequency.setValueAtTime(440.00, this.ctx.currentTime); // A4
+      osc.frequency.setValueAtTime(370, this.ctx.currentTime);
       gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
-      osc1.connect(gain);
-      osc2.connect(gain);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+      osc.connect(gain);
       gain.connect(this.ctx.destination);
-      osc1.start();
-      osc2.start();
-      osc1.stop(this.ctx.currentTime + 0.4);
-      osc2.stop(this.ctx.currentTime + 0.4);
-    }
-
-    startRadio() {
-      if (!this.ctx) return;
-      const bassNotes = [110, 110, 130.81, 146.83, 110, 110, 164.81, 146.83]; // 80s Synth bassline
-      const leadNotes = [440, 0, 523.25, 0, 659.25, 587.33, 440, 0];
-
-      this.radioInterval = setInterval(() => {
-        if (!this.radioPlaying || !this.initialized) return;
-
-        // Bass synth beat
-        const bassFreq = bassNotes[this.radioStep % bassNotes.length];
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        const filter = this.ctx.createBiquadFilter();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(bassFreq, this.ctx.currentTime);
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(450, this.ctx.currentTime);
-        filter.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.16);
-
-        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
-
-        // Synth lead note
-        const leadFreq = leadNotes[this.radioStep % leadNotes.length];
-        if (leadFreq > 0) {
-          const lOsc = this.ctx.createOscillator();
-          const lGain = this.ctx.createGain();
-          lOsc.type = 'square';
-          lOsc.frequency.setValueAtTime(leadFreq, this.ctx.currentTime);
-          lGain.gain.setValueAtTime(0.025, this.ctx.currentTime);
-          lGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
-          lOsc.connect(lGain);
-          lGain.connect(this.ctx.destination);
-          lOsc.start();
-          lOsc.stop(this.ctx.currentTime + 0.32);
-        }
-
-        this.radioStep++;
-      }, 160);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.35);
     }
 
     toggleRadio() {
       this.radioPlaying = !this.radioPlaying;
+      if (this.radioPlaying) this.startRadio();
+      else if (this.radioInterval) {
+        clearInterval(this.radioInterval);
+        this.radioInterval = null;
+      }
       return this.radioPlaying;
+    }
+
+    startRadio() {
+      if (!this.ctx) return;
+      const notes = [110, 110, 130.81, 146.83, 110, 110, 164.81, 146.83];
+      this.radioInterval = setInterval(() => {
+        if (!this.radioPlaying || !this.initialized) return;
+        const freq = notes[this.radioStep % notes.length];
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.16);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.17);
+        this.radioStep++;
+      }, 180);
     }
   }
 
-  // --- GAME STATE ---
+  // --- GAME STATE & LEVEL SYSTEM ---
   const STATE = {
     cash: 5000,
     health: 100,
     armor: 100,
     wantedLevel: 0,
-    wantedTimer: 0,
     isEvading: false,
     evadeTimer: 0,
-    speedMPH: 0,
     driftScore: 0,
-    cameraMode: 0, // 0: Close Chase, 1: High Chase, 2: Top-Down Classic GTA
+    cameraMode: 0,
     carColor: 0xff0055,
     neonColor: 0x00f0ff,
-    busted: false
+    busted: false,
+    currentLevel: 1,
+    levelStage: 0,
+    cratesCollected: 0
   };
 
-  // --- CONTROLS INPUT ---
   const INPUT = {
     gas: false,
     brake: false,
@@ -224,390 +208,360 @@
     drift: false
   };
 
-  // --- INITIALIZE THREE.JS ENGINE ---
+  // --- THREE.JS INITIALIZATION ---
   const container = document.getElementById('game-container');
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x10061e);
-  scene.fog = new THREE.FogExp2(0x18092c, 0.004);
+  scene.background = new THREE.Color(0x0e0618);
+  scene.fog = new THREE.FogExp2(0x130722, 0.005);
 
-  const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.5, 400);
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: false,
+    powerPreference: 'high-performance',
+    stencil: false,
+    depth: true
+  });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  renderer.shadowMap.enabled = false;
   container.appendChild(renderer.domElement);
 
   const sound = new SoundEngine();
 
-  // --- LIGHTING (VICE CITY NEON AESTHETIC) ---
-  const ambientLight = new THREE.AmbientLight(0x402555, 1.4);
+  const ambientLight = new THREE.AmbientLight(0x553366, 1.6);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0xff66cc, 1.0);
-  dirLight.position.set(60, 100, 40);
-  dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 1024;
-  dirLight.shadow.mapSize.height = 1024;
-  dirLight.shadow.camera.near = 10;
-  dirLight.shadow.camera.far = 300;
-  dirLight.shadow.camera.left = -120;
-  dirLight.shadow.camera.right = 120;
-  dirLight.shadow.camera.top = 120;
-  dirLight.shadow.camera.bottom = -120;
+  const dirLight = new THREE.DirectionalLight(0xff66bb, 1.2);
+  dirLight.position.set(40, 80, 40);
   scene.add(dirLight);
 
-  // --- CITY WORLD GENERATOR ---
-  const CITY_SIZE = 12; // 12x12 grid of blocks
-  const BLOCK_SIZE = 45;
+  // --- CITY GRID CONFIGURATION ---
+  const CITY_SIZE = 8;
+  const BLOCK_SIZE = 42;
   const ROAD_WIDTH = 18;
-  const HALF_MAP = (CITY_SIZE * (BLOCK_SIZE + ROAD_WIDTH)) / 2;
+  const STEP = BLOCK_SIZE + ROAD_WIDTH;
+  const HALF_MAP = (CITY_SIZE * STEP) / 2;
 
-  const colliders = []; // Array of { box: THREE.Box3, type: string, obj: mesh }
-  const policeCars = [];
-  const skidmarks = [];
-  const particles = [];
-
-  // Ground plane (Asphalt)
-  const groundGeo = new THREE.PlaneGeometry(HALF_MAP * 2.5, HALF_MAP * 2.5);
-  const groundMat = new THREE.MeshStandardMaterial({
-    color: 0x111116,
-    roughness: 0.85,
-    metalness: 0.2
-  });
+  // Ground Asphalt
+  const groundGeo = new THREE.PlaneGeometry(HALF_MAP * 2.6, HALF_MAP * 2.6);
+  const groundMat = new THREE.MeshBasicMaterial({ color: 0x121217 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
   scene.add(ground);
 
-  // Road grid and City blocks builder
-  const buildingMats = [
-    new THREE.MeshStandardMaterial({ color: 0x181a24, roughness: 0.4, metalness: 0.5 }),
-    new THREE.MeshStandardMaterial({ color: 0x22182e, roughness: 0.3, metalness: 0.6 }),
-    new THREE.MeshStandardMaterial({ color: 0x101b2b, roughness: 0.5, metalness: 0.4 }),
-    new THREE.MeshStandardMaterial({ color: 0x2b1520, roughness: 0.4, metalness: 0.5 })
-  ];
-
-  // Window emissive textures (procedurally generated on canvas)
-  function createBuildingTexture() {
+  // Window Texture
+  function createWindowTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
-    canvas.height = 256;
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#11131a';
-    ctx.fillRect(0, 0, 128, 256);
+    ctx.fillStyle = '#161420';
+    ctx.fillRect(0, 0, 128, 128);
 
-    const colors = ['#00f0ff', '#ff007f', '#ffd700', '#ffffff', '#222233'];
-    for (let y = 10; y < 250; y += 18) {
-      for (let x = 8; x < 120; x += 16) {
-        if (Math.random() > 0.4) {
+    const colors = ['#00f0ff', '#ff007f', '#ffd700', '#ffffff'];
+    for (let y = 8; y < 120; y += 18) {
+      for (let x = 6; x < 120; x += 16) {
+        if (Math.random() > 0.45) {
           ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-          ctx.fillRect(x, y, 9, 11);
+          ctx.fillRect(x, y, 9, 10);
         }
       }
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    return texture;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 8);
+    return tex;
   }
-  const windowTexture = createBuildingTexture();
+  const buildingTexture = createWindowTexture();
 
-  // Palm Tree Generator
-  function createPalmTree(x, z) {
-    const group = new THREE.Group();
-    // Curved trunk
-    const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 9, 6);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3d28, roughness: 0.9 });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = 4.5;
-    trunk.rotation.z = (Math.random() - 0.5) * 0.15;
-    trunk.castShadow = true;
-    group.add(trunk);
+  const buildingMat = new THREE.MeshLambertMaterial({
+    map: buildingTexture,
+    color: 0xcccccc
+  });
 
-    // Palm leaves
-    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x00cc66, roughness: 0.6, side: THREE.DoubleSide });
-    for (let i = 0; i < 7; i++) {
-      const leafGeo = new THREE.ConeGeometry(1.6, 6, 4);
-      const leaf = new THREE.Mesh(leafGeo, leavesMat);
-      leaf.position.y = 9;
-      leaf.rotation.x = Math.PI / 2.6;
-      leaf.rotation.y = (i * Math.PI * 2) / 7;
-      group.add(leaf);
-    }
-    group.position.set(x, 0, z);
-    scene.add(group);
-  }
+  const buildingData = [];
+  const colliders = [];
 
-  // Street Light Generator with real PointLight
-  function createStreetLight(x, z, rotY) {
-    const group = new THREE.Group();
-    const poleGeo = new THREE.CylinderGeometry(0.12, 0.15, 8, 6);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.8 });
-    const pole = new THREE.Mesh(poleGeo, poleMat);
-    pole.position.y = 4;
-    group.add(pole);
-
-    // Lamp arm
-    const armGeo = new THREE.BoxGeometry(0.15, 0.15, 2.2);
-    const arm = new THREE.Mesh(armGeo, poleMat);
-    arm.position.set(0, 7.9, 0.9);
-    group.add(arm);
-
-    // Glowing bulb
-    const bulbGeo = new THREE.SphereGeometry(0.35, 8, 8);
-    const isCyan = Math.random() > 0.5;
-    const glowColor = isCyan ? 0x00f0ff : 0xff9900;
-    const bulbMat = new THREE.MeshBasicMaterial({ color: glowColor });
-    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
-    bulb.position.set(0, 7.8, 1.8);
-    group.add(bulb);
-
-    // PointLight (only on selected lights for high FPS performance)
-    if (Math.random() > 0.65) {
-      const light = new THREE.PointLight(glowColor, 1.2, 22);
-      light.position.set(0, 7.5, 1.8);
-      group.add(light);
-    }
-
-    group.position.set(x, 0, z);
-    group.rotation.y = rotY;
-    scene.add(group);
-  }
-
-  // Build the city grid
-  const step = BLOCK_SIZE + ROAD_WIDTH;
   for (let ix = -CITY_SIZE / 2; ix < CITY_SIZE / 2; ix++) {
     for (let iz = -CITY_SIZE / 2; iz < CITY_SIZE / 2; iz++) {
-      const cx = ix * step + step / 2;
-      const cz = iz * step + step / 2;
+      if (Math.abs(ix) <= 0 && Math.abs(iz) <= 0) continue;
 
-      // Skip center block for an open plaza / spawn intersection
-      if (Math.abs(ix) <= 1 && Math.abs(iz) <= 1) continue;
+      const cx = ix * STEP + STEP / 2;
+      const cz = iz * STEP + STEP / 2;
+      const height = 25 + Math.random() * 55;
 
-      // Building height
-      const height = 25 + Math.random() * 65;
-      const bGeo = new THREE.BoxGeometry(BLOCK_SIZE, height, BLOCK_SIZE);
-      const bMat = buildingMats[Math.floor(Math.random() * buildingMats.length)].clone();
-      bMat.map = windowTexture;
-      bMat.emissiveMap = windowTexture;
-      bMat.emissive = new THREE.Color(0x332244);
-      bMat.emissiveIntensity = 0.5;
-
-      const building = new THREE.Mesh(bGeo, bMat);
-      building.position.set(cx, height / 2, cz);
-      building.castShadow = true;
-      building.receiveShadow = true;
-      scene.add(building);
-
-      // Add collider box for physics
-      const box = new THREE.Box3().setFromObject(building);
-      colliders.push({ box, type: 'building', obj: building });
-
-      // Add palm trees along sidewalks
-      createPalmTree(cx + BLOCK_SIZE / 2 + 3, cz);
-      createPalmTree(cx - BLOCK_SIZE / 2 - 3, cz);
-
-      // Add streetlights
-      createStreetLight(cx + BLOCK_SIZE / 2 + 2, cz + 10, -Math.PI / 2);
-      createStreetLight(cx - BLOCK_SIZE / 2 - 2, cz - 10, Math.PI / 2);
+      buildingData.push({ x: cx, y: height / 2, z: cz, height });
+      colliders.push({
+        minX: cx - BLOCK_SIZE / 2,
+        maxX: cx + BLOCK_SIZE / 2,
+        minZ: cz - BLOCK_SIZE / 2,
+        maxZ: cz + BLOCK_SIZE / 2
+      });
     }
   }
 
-  // Road lane markings
-  const roadMarkingMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
-  const markingGeo = new THREE.PlaneGeometry(0.5, 3);
-  markingGeo.rotateX(-Math.PI / 2);
+  // Instanced Buildings
+  const bBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+  const buildingInstances = new THREE.InstancedMesh(bBoxGeo, buildingMat, buildingData.length);
+  const dummy = new THREE.Object3D();
 
-  for (let i = -HALF_MAP; i < HALF_MAP; i += 7) {
+  buildingData.forEach((b, i) => {
+    dummy.position.set(b.x, b.y, b.z);
+    dummy.scale.set(BLOCK_SIZE, b.height, BLOCK_SIZE);
+    dummy.rotation.set(0, 0, 0);
+    dummy.updateMatrix();
+    buildingInstances.setMatrixAt(i, dummy.matrix);
+  });
+  buildingInstances.instanceMatrix.needsUpdate = true;
+  scene.add(buildingInstances);
+
+  // Instanced Road Markings
+  const roadMarkingsData = [];
+  for (let i = -HALF_MAP; i < HALF_MAP; i += 9) {
     for (let r = -CITY_SIZE / 2; r <= CITY_SIZE / 2; r++) {
-      const roadCoord = r * step;
-      // Horizontal road markings
-      const mH = new THREE.Mesh(markingGeo, roadMarkingMat);
-      mH.position.set(i, 0.05, roadCoord);
-      mH.rotation.y = Math.PI / 2;
-      scene.add(mH);
-
-      // Vertical road markings
-      const mV = new THREE.Mesh(markingGeo, roadMarkingMat);
-      mV.position.set(roadCoord, 0.05, i);
-      scene.add(mV);
+      const roadCoord = r * STEP;
+      roadMarkingsData.push({ x: i, z: roadCoord, rotY: Math.PI / 2 });
+      roadMarkingsData.push({ x: roadCoord, z: i, rotY: 0 });
     }
   }
 
-  // --- PLAYER VEHICLE (VICEROY TURBO SUPERCAR) ---
-  function buildCarModel(colorHex, neonHex) {
+  const markGeo = new THREE.PlaneGeometry(0.45, 3.2);
+  markGeo.rotateX(-Math.PI / 2);
+  const markMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+  const markInstances = new THREE.InstancedMesh(markGeo, markMat, roadMarkingsData.length);
+
+  roadMarkingsData.forEach((m, idx) => {
+    dummy.position.set(m.x, 0.04, m.z);
+    dummy.rotation.set(0, m.rotY, 0);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    markInstances.setMatrixAt(idx, dummy.matrix);
+  });
+  markInstances.instanceMatrix.needsUpdate = true;
+  scene.add(markInstances);
+
+  // Instanced Palm Trees
+  const treePositions = [];
+  buildingData.forEach(b => {
+    treePositions.push({ x: b.x + BLOCK_SIZE / 2 + 2.5, z: b.z });
+    treePositions.push({ x: b.x - BLOCK_SIZE / 2 - 2.5, z: b.z });
+  });
+
+  const trunkGeo = new THREE.CylinderGeometry(0.25, 0.4, 7, 5);
+  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3d28 });
+  const trunkInstances = new THREE.InstancedMesh(trunkGeo, trunkMat, treePositions.length);
+
+  const leavesGeo = new THREE.ConeGeometry(2.4, 4.5, 5);
+  const leavesMat = new THREE.MeshLambertMaterial({ color: 0x00cc66 });
+  const leavesInstances = new THREE.InstancedMesh(leavesGeo, leavesMat, treePositions.length);
+
+  treePositions.forEach((pos, idx) => {
+    dummy.position.set(pos.x, 3.5, pos.z);
+    dummy.scale.set(1, 1, 1);
+    dummy.rotation.set(0, 0, 0);
+    dummy.updateMatrix();
+    trunkInstances.setMatrixAt(idx, dummy.matrix);
+
+    dummy.position.set(pos.x, 7.5, pos.z);
+    dummy.updateMatrix();
+    leavesInstances.setMatrixAt(idx, dummy.matrix);
+  });
+  trunkInstances.instanceMatrix.needsUpdate = true;
+  leavesInstances.instanceMatrix.needsUpdate = true;
+  scene.add(trunkInstances, leavesInstances);
+
+  // --- 3D MISSION BEACON & WAYPOINT SYSTEM ---
+  const beaconGroup = new THREE.Group();
+  // Vertical neon light pillar
+  const pillarGeo = new THREE.CylinderGeometry(1.6, 1.6, 50, 16, 1, true);
+  const pillarMat = new THREE.MeshBasicMaterial({
+    color: 0xffd700,
+    transparent: true,
+    opacity: 0.35,
+    side: THREE.DoubleSide
+  });
+  const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+  pillar.position.y = 25;
+  beaconGroup.add(pillar);
+
+  // Rotating Floating Diamond Icon
+  const diamondGeo = new THREE.OctahedronGeometry(1.5, 0);
+  const diamondMat = new THREE.MeshBasicMaterial({ color: 0xffd700, wireframe: false });
+  const diamondMesh = new THREE.Mesh(diamondGeo, diamondMat);
+  diamondMesh.position.y = 3.5;
+  beaconGroup.add(diamondMesh);
+
+  // Ground Halo Ring
+  const ringGeo = new THREE.RingGeometry(2.5, 3.2, 24);
+  ringGeo.rotateX(-Math.PI / 2);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide });
+  const haloRing = new THREE.Mesh(ringGeo, ringMat);
+  haloRing.position.y = 0.08;
+  beaconGroup.add(haloRing);
+
+  beaconGroup.position.set(STEP * 2, 0, STEP * 2);
+  scene.add(beaconGroup);
+
+  // --- PLAYER VEHICLE ---
+  function buildPlayerCar() {
     const carGroup = new THREE.Group();
-
-    // Main Chassis / Wedge Body
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: colorHex,
-      metalness: 0.8,
-      roughness: 0.2
-    });
-
-    const bodyGeo = new THREE.BoxGeometry(2.3, 0.75, 4.8);
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: STATE.carColor });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 4.6), bodyMat);
     body.position.y = 0.65;
-    body.castShadow = true;
     carGroup.add(body);
 
-    // Tapered Nose
-    const noseGeo = new THREE.ConeGeometry(1.6, 1.4, 4);
-    const nose = new THREE.Mesh(noseGeo, bodyMat);
-    nose.rotation.x = -Math.PI / 2;
-    nose.rotation.y = Math.PI / 4;
-    nose.position.set(0, 0.45, 2.7);
-    nose.scale.set(1.2, 0.5, 1);
-    carGroup.add(nose);
-
-    // Cabin Roof & Windshield
-    const cabinMat = new THREE.MeshStandardMaterial({
-      color: 0x050508,
-      roughness: 0.1,
-      metalness: 0.95
-    });
-    const cabinGeo = new THREE.BoxGeometry(1.9, 0.65, 2.4);
-    const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+    const cabinMat = new THREE.MeshLambertMaterial({ color: 0x111116 });
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 2.3), cabinMat);
     cabin.position.set(0, 1.25, -0.2);
     carGroup.add(cabin);
 
-    // Rear Spoiler
-    const spoilerMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4 });
-    const spoilerWing = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.6), spoilerMat);
-    spoilerWing.position.set(0, 1.45, -2.2);
-    const postL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5), spoilerMat);
-    postL.position.set(-0.8, 1.2, -2.2);
-    const postR = postL.clone();
-    postR.position.x = 0.8;
-    carGroup.add(spoilerWing, postL, postR);
+    const spoiler = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.5), new THREE.MeshBasicMaterial({ color: 0x050505 }));
+    spoiler.position.set(0, 1.35, -2.1);
+    carGroup.add(spoiler);
 
-    // 4 Wheels
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });
-    const rimMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.2 });
-    const wheelGeo = new THREE.CylinderGeometry(0.44, 0.44, 0.4, 16);
+    const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.35, 8);
     wheelGeo.rotateZ(Math.PI / 2);
+    const wheelMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
 
     const wheels = [];
-    const wheelPositions = [
-      { x: -1.2, y: 0.44, z: 1.5, front: true },
-      { x: 1.2, y: 0.44, z: 1.5, front: true },
-      { x: -1.2, y: 0.44, z: -1.5, front: false },
-      { x: 1.2, y: 0.44, z: -1.5, front: false }
+    const wheelPos = [
+      { x: -1.15, y: 0.42, z: 1.4, front: true },
+      { x: 1.15, y: 0.42, z: 1.4, front: true },
+      { x: -1.15, y: 0.42, z: -1.4, front: false },
+      { x: 1.15, y: 0.42, z: -1.4, front: false }
     ];
 
-    wheelPositions.forEach((pos) => {
-      const wGroup = new THREE.Group();
-      const tire = new THREE.Mesh(wheelGeo, wheelMat);
-      tire.castShadow = true;
-      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.42, 12), rimMat);
-      rim.rotateZ(Math.PI / 2);
-      wGroup.add(tire, rim);
-      wGroup.position.set(pos.x, pos.y, pos.z);
-      carGroup.add(wGroup);
-      wheels.push({ mesh: wGroup, front: pos.front });
+    wheelPos.forEach(p => {
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.position.set(p.x, p.y, p.z);
+      carGroup.add(w);
+      wheels.push({ mesh: w, front: p.front });
     });
 
-    // Headlights (3D Emissive + SpotLights)
-    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const hlLeft = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.1), headlightMat);
-    hlLeft.position.set(-0.8, 0.65, 2.4);
-    const hlRight = hlLeft.clone();
-    hlRight.position.x = 0.8;
-    carGroup.add(hlLeft, hlRight);
+    const hlMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.1), hlMat);
+    hlL.position.set(-0.75, 0.65, 2.32);
+    const hlR = hlL.clone();
+    hlR.position.x = 0.75;
+    carGroup.add(hlL, hlR);
 
-    // Front Spotlights projecting on road
-    const spotL = new THREE.SpotLight(0xfff5e6, 2.5, 45, Math.PI / 7, 0.4, 1);
-    spotL.position.set(-0.8, 0.8, 2.5);
-    const spotTargetL = new THREE.Object3D();
-    spotTargetL.position.set(-0.8, 0, 25);
-    carGroup.add(spotL, spotTargetL);
-    spotL.target = spotTargetL;
-
-    const spotR = new THREE.SpotLight(0xfff5e6, 2.5, 45, Math.PI / 7, 0.4, 1);
-    spotR.position.set(0.8, 0.8, 2.5);
-    const spotTargetR = new THREE.Object3D();
-    spotTargetR.position.set(0.8, 0, 25);
-    carGroup.add(spotR, spotTargetR);
-    spotR.target = spotTargetR;
-
-    // Glowing Neon Taillights
-    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
-    const tl = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.18, 0.1), taillightMat);
-    tl.position.set(0, 0.7, -2.4);
+    const tlMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
+    const tl = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.16, 0.1), tlMat);
+    tl.position.set(0, 0.68, -2.32);
     carGroup.add(tl);
 
-    // Neon Underglow Light
-    const underglow = new THREE.PointLight(neonHex, 3.5, 9);
-    underglow.position.set(0, 0.2, 0);
+    const underglowGeo = new THREE.PlaneGeometry(2.6, 4.8);
+    underglowGeo.rotateX(-Math.PI / 2);
+    const underglowMat = new THREE.MeshBasicMaterial({
+      color: STATE.neonColor,
+      transparent: true,
+      opacity: 0.45
+    });
+    const underglow = new THREE.Mesh(underglowGeo, underglowMat);
+    underglow.position.y = 0.05;
     carGroup.add(underglow);
 
-    return { group: carGroup, wheels, bodyMat, underglow, taillightMat };
+    return { group: carGroup, wheels, bodyMat, underglowMat, tlMat };
   }
 
-  const playerCar = buildCarModel(STATE.carColor, STATE.neonColor);
-  playerCar.group.position.set(0, 0, 0);
+  const playerCar = buildPlayerCar();
   scene.add(playerCar.group);
 
-  // Player Physics Variables
   const PHYSICS = {
     x: 0,
     z: 0,
     rotY: 0,
     speed: 0,
-    maxSpeed: 1.6, // ~115 MPH
-    reverseMax: -0.6,
-    accel: 0.024,
-    brakeDecel: 0.045,
-    naturalDecel: 0.01,
+    maxSpeed: 1.5,
+    reverseMax: -0.5,
+    accel: 0.025,
+    brakeDecel: 0.05,
+    naturalDecel: 0.012,
     steerAngle: 0,
-    steerSpeed: 0.045,
-    steerMax: 0.042,
-    driftSlip: 0.94,
+    steerSpeed: 0.05,
+    steerMax: 0.045,
     lateralVelocity: 0
   };
 
-  // --- POLICE CAR GENERATOR & AI SYSTEM ---
-  function spawnPoliceCar(spawnNearX, spawnNearZ) {
+  // --- CIVILIAN TRAFFIC SYSTEM (CARS CRUSING THE STREETS) ---
+  const trafficCars = [];
+  const trafficColors = [0xffcc00, 0xffffff, 0x00ccff, 0xff3300, 0x222222, 0x00ff88, 0x9900ff];
+
+  function createTrafficCar(initX, initZ, rotY, isSpecialTarget) {
+    const group = new THREE.Group();
+    const color = isSpecialTarget ? 0xffd700 : trafficColors[Math.floor(Math.random() * trafficColors.length)];
+
+    const bodyMat = new THREE.MeshLambertMaterial({ color });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.75, 4.5), bodyMat);
+    body.position.y = 0.65;
+    group.add(body);
+
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.65, 2.4), new THREE.MeshLambertMaterial({ color: 0x111116 }));
+    cabin.position.set(0, 1.25, -0.1);
+    group.add(cabin);
+
+    // If taxi, add roof taxi light
+    if (color === 0xffcc00 && !isSpecialTarget) {
+      const taxiSign = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.25, 0.3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      taxiSign.position.set(0, 1.7, -0.1);
+      group.add(taxiSign);
+    }
+
+    // If special target, add golden beacon on roof
+    if (isSpecialTarget) {
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.15, 8, 16), new THREE.MeshBasicMaterial({ color: 0xffd700 }));
+      halo.rotation.x = Math.PI / 2;
+      halo.position.y = 2.4;
+      group.add(halo);
+    }
+
+    group.position.set(initX, 0, initZ);
+    group.rotation.y = rotY;
+    scene.add(group);
+
+    trafficCars.push({
+      mesh: group,
+      x: initX,
+      z: initZ,
+      rotY: rotY,
+      speed: 0.35 + Math.random() * 0.25,
+      isSpecialTarget: !!isSpecialTarget,
+      health: isSpecialTarget ? 100 : 30
+    });
+  }
+
+  // Populate ambient traffic cars on street avenues
+  for (let t = -3; t <= 3; t++) {
+    const rx = t * STEP;
+    createTrafficCar(rx + 4, -HALF_MAP + Math.random() * HALF_MAP * 2, 0, false);
+    createTrafficCar(-HALF_MAP + Math.random() * HALF_MAP * 2, rx - 4, Math.PI / 2, false);
+  }
+
+  // --- POLICE SQUAD CARS ---
+  const policeCars = [];
+  function spawnPolice(spawnNearX, spawnNearZ) {
+    if (policeCars.length >= 4) return;
+
     const pGroup = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.75, 4.6), new THREE.MeshLambertMaterial({ color: 0x111111 }));
+    body.position.y = 0.65;
+    pGroup.add(body);
 
-    // Black & white cruiser body
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.3 });
-    const doorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.5, roughness: 0.3 });
-
-    const base = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.8, 4.8), bodyMat);
-    base.position.y = 0.65;
-    pGroup.add(base);
-
-    const doorL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.75, 2.0), doorMat);
-    doorL.position.set(-1.18, 0.65, 0);
-    const doorR = doorL.clone();
-    doorR.position.x = 1.18;
-    pGroup.add(doorL, doorR);
-
-    // Cabin
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2.3), new THREE.MeshStandardMaterial({ color: 0x050508 }));
-    cabin.position.set(0, 1.3, -0.2);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 2.2), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    cabin.position.set(0, 1.25, -0.2);
     pGroup.add(cabin);
 
-    // Lightbar (Red & Blue)
-    const redLight = new THREE.PointLight(0xff0033, 0, 18);
-    redLight.position.set(-0.6, 1.85, -0.2);
-    const blueLight = new THREE.PointLight(0x0066ff, 0, 18);
-    blueLight.position.set(0.6, 1.85, -0.2);
+    const sirenMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.18, 0.3),
+      new THREE.MeshBasicMaterial({ color: 0xff0033 })
+    );
+    sirenMesh.position.set(0, 1.65, -0.2);
+    pGroup.add(sirenMesh);
 
-    const redBar = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.25), new THREE.MeshBasicMaterial({ color: 0xff0033 }));
-    redBar.position.set(-0.6, 1.75, -0.2);
-    const blueBar = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.25), new THREE.MeshBasicMaterial({ color: 0x0066ff }));
-    blueBar.position.set(0.6, 1.75, -0.2);
-
-    pGroup.add(redLight, blueLight, redBar, blueBar);
-
-    // Spawn location 60-90 units away from player
     const angle = Math.random() * Math.PI * 2;
-    const dist = 65 + Math.random() * 25;
+    const dist = 65;
     const posX = spawnNearX + Math.cos(angle) * dist;
     const posZ = spawnNearZ + Math.sin(angle) * dist;
 
@@ -616,49 +570,125 @@
 
     policeCars.push({
       mesh: pGroup,
+      sirenMesh,
       x: posX,
       z: posZ,
-      rotY: angle + Math.PI,
+      rotY: angle,
       speed: 0,
-      maxSpeed: 1.1 + STATE.wantedLevel * 0.15,
-      redLight,
-      blueLight,
+      maxSpeed: 1.15 + STATE.wantedLevel * 0.08,
       flashTimer: 0,
       pinTime: 0
     });
   }
 
-  // --- SKIDMARKS & SMOKE PARTICLES ---
-  function addSkidmark(x, z, rotY) {
-    const geo = new THREE.PlaneGeometry(0.45, 1.4);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.65 });
-    const mark = new THREE.Mesh(geo, mat);
-    mark.position.set(x, 0.03, z);
-    mark.rotation.y = rotY;
-    scene.add(mark);
-    skidmarks.push({ mesh: mark, life: 180 });
+  // --- SKIDMARK POOL ---
+  const MAX_SKIDS = 25;
+  const skidPool = [];
+  const skidMat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.5 });
+  const sGeo = new THREE.PlaneGeometry(0.4, 1.2);
+  sGeo.rotateX(-Math.PI / 2);
+
+  for (let i = 0; i < MAX_SKIDS; i++) {
+    const s = new THREE.Mesh(sGeo, skidMat);
+    s.visible = false;
+    scene.add(s);
+    skidPool.push({ mesh: s, life: 0 });
+  }
+  let skidIdx = 0;
+
+  function spawnSkid(x, z, rotY) {
+    const item = skidPool[skidIdx];
+    item.mesh.position.set(x, 0.03, z);
+    item.mesh.rotation.y = rotY;
+    item.mesh.visible = true;
+    item.life = 120;
+    skidIdx = (skidIdx + 1) % MAX_SKIDS;
   }
 
-  function addSmokeParticle(x, y, z) {
-    const geo = new THREE.SphereGeometry(0.35 + Math.random() * 0.3, 5, 5);
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xcccccc,
-      transparent: true,
-      opacity: 0.5
-    });
-    const p = new THREE.Mesh(geo, mat);
-    p.position.set(x + (Math.random() - 0.5) * 0.4, y, z + (Math.random() - 0.5) * 0.4);
-    scene.add(p);
-    particles.push({
-      mesh: p,
-      life: 25,
-      maxLife: 25,
-      vx: (Math.random() - 0.5) * 0.08,
-      vy: 0.04 + Math.random() * 0.04,
-      vz: (Math.random() - 0.5) * 0.08
-    });
+  // --- MISSION STORY PROGRESSION ENGINE ---
+  const MISSIONS = {
+    1: {
+      title: "THE FIRST SCORE",
+      instruction: "Drive to the glowing marker at Ocean Bank",
+      beaconPos: { x: STEP * 2, z: STEP * 2 },
+      reward: 5000,
+      epilogue: "You secured the stolen diamond briefcase and outran the patrol squad! The Boss has promoted your rank."
+    },
+    2: {
+      title: "GRAND THEFT CARTEL",
+      instruction: "Hunt down and steal the Cartel Boss's Gold Supercar!",
+      beaconPos: { x: -STEP * 2, z: STEP * 2 },
+      reward: 10000,
+      epilogue: "You hijacked the Cartel Boss's custom ride and recovered the encrypted PDA. You now run the district."
+    },
+    3: {
+      title: "THE HARBOR GETAWAY",
+      instruction: "Collect 3 contraband crates across the city & escape!",
+      beaconPos: { x: 0, z: -HALF_MAP + 25 },
+      reward: 25000,
+      epilogue: "Incredible getaway! All contraband secured, 4-star military blockade bypassed! You are the King of Vice Outlaws!"
+    }
+  };
+
+  function showStoryDialog(caller, msg, durationMs) {
+    const box = document.getElementById('dialog-box');
+    document.getElementById('dialog-caller').textContent = caller;
+    document.getElementById('dialog-message').textContent = msg;
+    box.classList.remove('hidden');
+
+    setTimeout(() => {
+      box.classList.add('hidden');
+    }, durationMs || 5000);
   }
+
+  function startLevel(lvl) {
+    STATE.currentLevel = lvl;
+    STATE.levelStage = 0;
+    STATE.cratesCollected = 0;
+
+    const data = MISSIONS[lvl] || MISSIONS[1];
+    document.getElementById('mission-level-badge').textContent = 'LEVEL ' + lvl;
+    document.getElementById('mission-name').textContent = data.title;
+    document.getElementById('mission-instruction').textContent = data.instruction;
+
+    // Reposition 3D Mission Beacon
+    beaconGroup.position.set(data.beaconPos.x, 0, data.beaconPos.z);
+    beaconGroup.visible = true;
+
+    if (lvl === 1) {
+      showStoryDialog('TONY "THE FIXER"', '"Welcome to Vice City, kid. Go to the bank alley and steal the diamond briefcase!"', 6000);
+    } else if (lvl === 2) {
+      showStoryDialog('TONY "THE FIXER"', '"Rival cartel boss is cruising in a Gold Supercar. Track it, ram it off the road, and take it!"', 6000);
+      // Spawn golden cartel target car
+      createTrafficCar(STEP, -STEP, Math.PI / 2, true);
+    } else if (lvl === 3) {
+      showStoryDialog('TONY "THE FIXER"', '"Feds are raiding the safehouses! Collect 3 hidden contraband crates and escape to the harbor!"', 6000);
+    }
+  }
+
+  function completeLevel() {
+    sound.playMissionSuccess();
+    const data = MISSIONS[STATE.currentLevel];
+    STATE.cash += data.reward;
+    updateHUD(true);
+
+    const modal = document.getElementById('level-complete-modal');
+    document.getElementById('completed-level-name').textContent = data.title;
+    document.getElementById('level-reward-val').textContent = '+$' + data.reward.toLocaleString();
+    document.getElementById('level-epilogue').textContent = data.epilogue;
+    modal.classList.remove('hidden');
+
+    beaconGroup.visible = false;
+    setWantedLevel(0);
+    policeCars.forEach(p => scene.remove(p.mesh));
+    policeCars.length = 0;
+  }
+
+  document.getElementById('next-level-btn').addEventListener('click', () => {
+    document.getElementById('level-complete-modal').classList.add('hidden');
+    const nextLvl = STATE.currentLevel >= 3 ? 1 : STATE.currentLevel + 1;
+    startLevel(nextLvl);
+  });
 
   // --- STUNT & DRIFT UI TRIGGER ---
   let stuntTimeout = null;
@@ -676,20 +706,17 @@
     popup.classList.remove('hidden');
 
     if (stuntTimeout) clearTimeout(stuntTimeout);
-    stuntTimeout = setTimeout(() => {
-      popup.classList.add('hidden');
-    }, 1800);
+    stuntTimeout = setTimeout(() => popup.classList.add('hidden'), 1600);
   }
 
-  // --- WANTED LEVEL MANAGEMENT ---
+  // --- WANTED LEVEL ---
   function setWantedLevel(stars) {
     if (stars === STATE.wantedLevel) return;
     STATE.wantedLevel = Math.max(0, Math.min(5, stars));
     updateWantedStars();
 
-    // Adjust police active count
-    while (policeCars.length < STATE.wantedLevel) {
-      spawnPoliceCar(PHYSICS.x, PHYSICS.z);
+    while (policeCars.length < Math.min(4, STATE.wantedLevel)) {
+      spawnPolice(PHYSICS.x, PHYSICS.z);
     }
   }
 
@@ -713,21 +740,20 @@
     }
   }
 
-  // --- HUD UPDATE LOOP ---
-  function updateHUD() {
-    // Format cash: $0005000
-    const formattedCash = String(Math.floor(STATE.cash)).padStart(7, '0');
-    document.getElementById('cash-display').textContent = formattedCash;
+  // --- HUD UPDATE (THROTTLED) ---
+  let lastHudUpdate = 0;
+  function updateHUD(force) {
+    const now = performance.now();
+    if (!force && now - lastHudUpdate < 66) return;
+    lastHudUpdate = now;
 
-    // Health & Armor
+    document.getElementById('cash-display').textContent = String(Math.floor(STATE.cash)).padStart(7, '0');
     document.getElementById('health-bar').style.width = STATE.health + '%';
     document.getElementById('armor-bar').style.width = STATE.armor + '%';
 
-    // Speedometer
     const speedMPH = Math.round(Math.abs(PHYSICS.speed) * 72);
     document.getElementById('speed-display').textContent = speedMPH;
 
-    // Gear indicator
     const gearEl = document.getElementById('gear-display');
     if (PHYSICS.speed < -0.05) gearEl.textContent = 'REV';
     else if (speedMPH === 0) gearEl.textContent = 'N';
@@ -735,79 +761,101 @@
     else if (speedMPH < 65) gearEl.textContent = '2ND';
     else if (speedMPH < 95) gearEl.textContent = '3RD';
     else gearEl.textContent = 'TOP';
+
+    // Distance to mission beacon
+    if (beaconGroup.visible) {
+      const dx = beaconGroup.position.x - PHYSICS.x;
+      const dz = beaconGroup.position.z - PHYSICS.z;
+      const distM = Math.round(Math.sqrt(dx * dx + dz * dz));
+      document.getElementById('mission-dist').textContent = distM + 'm';
+    }
   }
 
-  // --- RADAR / MINI-MAP (CANVAS) ---
+  // --- RADAR / MINI-MAP ---
   const radarCanvas = document.getElementById('radar-canvas');
   const radarCtx = radarCanvas.getContext('2d');
+  let lastRadarUpdate = 0;
 
   function drawRadar() {
-    radarCtx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
-    const cx = radarCanvas.width / 2;
-    const cy = radarCanvas.height / 2;
-    const scale = 0.55;
+    const now = performance.now();
+    if (now - lastRadarUpdate < 45) return;
+    lastRadarUpdate = now;
+
+    radarCtx.clearRect(0, 0, 160, 160);
+    const cx = 80;
+    const cy = 80;
+    const scale = 0.5;
 
     radarCtx.save();
     radarCtx.translate(cx, cy);
     radarCtx.rotate(-PHYSICS.rotY);
 
-    // Draw simplified grid roads
+    // Simplified street lines
     radarCtx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
-    radarCtx.lineWidth = 6;
-    const mapRange = 90;
-
-    for (let r = -CITY_SIZE / 2; r <= CITY_SIZE / 2; r++) {
-      const coord = r * step;
-      // Horiz
+    radarCtx.lineWidth = 5;
+    for (let r = -2; r <= 2; r++) {
+      const coord = r * STEP;
       radarCtx.beginPath();
-      radarCtx.moveTo((-coord - -PHYSICS.x) * scale, (-mapRange) * scale);
-      radarCtx.lineTo((-coord - -PHYSICS.x) * scale, (mapRange) * scale);
+      radarCtx.moveTo((-coord + PHYSICS.x) * scale, -50);
+      radarCtx.lineTo((-coord + PHYSICS.x) * scale, 50);
       radarCtx.stroke();
     }
 
-    // Draw police car blips (flashing red/blue dots)
-    policeCars.forEach((cop, idx) => {
-      const relX = (cop.x - PHYSICS.x) * scale;
-      const relZ = (cop.z - PHYSICS.z) * scale;
-
-      radarCtx.fillStyle = (Date.now() % 400 < 200) ? '#ff0033' : '#0066ff';
+    // Traffic blips (small grey dots)
+    radarCtx.fillStyle = '#aaaaaa';
+    trafficCars.forEach(tc => {
+      const rx = (tc.x - PHYSICS.x) * scale;
+      const rz = (tc.z - PHYSICS.z) * scale;
       radarCtx.beginPath();
-      radarCtx.arc(relX, relZ, 4.5, 0, Math.PI * 2);
+      radarCtx.arc(rx, rz, 2, 0, Math.PI * 2);
+      radarCtx.fill();
+    });
+
+    // Mission Beacon (Pulsing Gold Star)
+    if (beaconGroup.visible) {
+      const bx = (beaconGroup.position.x - PHYSICS.x) * scale;
+      const bz = (beaconGroup.position.z - PHYSICS.z) * scale;
+      radarCtx.fillStyle = '#ffd700';
+      radarCtx.beginPath();
+      radarCtx.arc(bx, bz, 5.5, 0, Math.PI * 2);
+      radarCtx.fill();
+    }
+
+    // Police blips (flashing red)
+    policeCars.forEach(cop => {
+      const rx = (cop.x - PHYSICS.x) * scale;
+      const rz = (cop.z - PHYSICS.z) * scale;
+      radarCtx.fillStyle = '#ff0044';
+      radarCtx.beginPath();
+      radarCtx.arc(rx, rz, 4, 0, Math.PI * 2);
       radarCtx.fill();
     });
 
     radarCtx.restore();
 
-    // Center player blip (always pointing UP in radar)
+    // Center player icon
     radarCtx.fillStyle = '#00f0ff';
     radarCtx.beginPath();
     radarCtx.moveTo(cx, cy - 7);
     radarCtx.lineTo(cx - 5, cy + 6);
-    radarCtx.lineTo(cx, cy + 3);
     radarCtx.lineTo(cx + 5, cy + 6);
     radarCtx.closePath();
     radarCtx.fill();
   }
 
-  // --- BUSTED / RESPAWN SYSTEM ---
+  // --- BUSTED / RESPAWN ---
   function triggerBusted() {
     if (STATE.busted) return;
     STATE.busted = true;
     sound.playCrash();
-
-    const screen = document.getElementById('busted-screen');
-    screen.classList.remove('hidden');
-
-    // Deduct cash penalty
+    document.getElementById('busted-screen').classList.remove('hidden');
     STATE.cash = Math.max(0, STATE.cash - 1000);
-    updateHUD();
+    updateHUD(true);
   }
 
-  function respawnPlayer() {
+  document.getElementById('respawn-btn').addEventListener('click', () => {
     STATE.busted = false;
     document.getElementById('busted-screen').classList.add('hidden');
-
-    // Reset position to center intersection
     PHYSICS.x = 0;
     PHYSICS.z = 0;
     PHYSICS.speed = 0;
@@ -815,182 +863,222 @@
     STATE.health = 100;
     STATE.armor = 100;
     setWantedLevel(0);
-
-    // Remove active police
     policeCars.forEach(p => scene.remove(p.mesh));
     policeCars.length = 0;
+    updateHUD(true);
+  });
 
-    updateHUD();
-  }
-
-  document.getElementById('respawn-btn').addEventListener('click', respawnPlayer);
-
-  // --- MAIN PHYSICS & VEHICLE UPDATE ---
+  // --- UPDATE VEHICLE & TRAFFIC ---
   function updateVehicle() {
     if (STATE.busted) return;
 
-    // Acceleration & Braking
     if (INPUT.gas) {
       PHYSICS.speed = Math.min(PHYSICS.maxSpeed, PHYSICS.speed + PHYSICS.accel);
     } else if (INPUT.brake) {
-      if (PHYSICS.speed > 0.05) {
-        PHYSICS.speed = Math.max(0, PHYSICS.speed - PHYSICS.brakeDecel);
-        playerCar.taillightMat.color.setHex(0xffffff); // Reversing/brake white glow
-      } else {
-        PHYSICS.speed = Math.max(PHYSICS.reverseMax, PHYSICS.speed - PHYSICS.accel * 0.7);
-        playerCar.taillightMat.color.setHex(0xffffff);
-      }
+      if (PHYSICS.speed > 0.05) PHYSICS.speed = Math.max(0, PHYSICS.speed - PHYSICS.brakeDecel);
+      else PHYSICS.speed = Math.max(PHYSICS.reverseMax, PHYSICS.speed - PHYSICS.accel * 0.7);
     } else {
-      playerCar.taillightMat.color.setHex(0xff0044); // Normal taillight
-      // Natural friction
       if (PHYSICS.speed > 0) PHYSICS.speed = Math.max(0, PHYSICS.speed - PHYSICS.naturalDecel);
       else if (PHYSICS.speed < 0) PHYSICS.speed = Math.min(0, PHYSICS.speed + PHYSICS.naturalDecel);
     }
 
-    // Steering
     if (INPUT.left) {
       PHYSICS.steerAngle = Math.min(PHYSICS.steerMax, PHYSICS.steerAngle + PHYSICS.steerSpeed);
     } else if (INPUT.right) {
       PHYSICS.steerAngle = Math.max(-PHYSICS.steerMax, PHYSICS.steerAngle - PHYSICS.steerSpeed);
     } else {
-      PHYSICS.steerAngle *= 0.7; // Auto-center
+      PHYSICS.steerAngle *= 0.75;
     }
 
-    // Apply rotation based on speed and steering angle
     const speedFactor = (PHYSICS.speed / PHYSICS.maxSpeed);
-    const turnAmount = PHYSICS.steerAngle * (PHYSICS.speed >= 0 ? 1 : -1) * (0.4 + Math.abs(speedFactor) * 0.8);
-    PHYSICS.rotY += turnAmount;
+    PHYSICS.rotY += PHYSICS.steerAngle * (PHYSICS.speed >= 0 ? 1 : -1) * (0.4 + Math.abs(speedFactor) * 0.8);
 
-    // Drifting physics
+    // Drift mechanic
     const isDrifting = INPUT.drift && Math.abs(PHYSICS.speed) > 0.4 && Math.abs(PHYSICS.steerAngle) > 0.015;
     if (isDrifting) {
-      PHYSICS.lateralVelocity = PHYSICS.steerAngle * PHYSICS.speed * 1.5;
+      PHYSICS.lateralVelocity = PHYSICS.steerAngle * PHYSICS.speed * 1.4;
       sound.playTireScreech();
 
-      // Spawn skidmarks & smoke
-      const leftRearX = PHYSICS.x - Math.cos(PHYSICS.rotY) * 1.1 - Math.sin(PHYSICS.rotY) * 1.5;
-      const leftRearZ = PHYSICS.z + Math.sin(PHYSICS.rotY) * 1.1 - Math.cos(PHYSICS.rotY) * 1.5;
-      addSkidmark(leftRearX, leftRearZ, PHYSICS.rotY);
-      addSmokeParticle(leftRearX, 0.4, leftRearZ);
-
-      // Accumulate drift points
-      STATE.driftScore += Math.floor(Math.abs(PHYSICS.speed) * 18);
-      if (STATE.driftScore > 300) {
-        triggerStunt('SICK DRIFT!', Math.min(1000, STATE.driftScore));
+      spawnSkid(PHYSICS.x, PHYSICS.z, PHYSICS.rotY);
+      STATE.driftScore += 12;
+      if (STATE.driftScore > 260) {
+        triggerStunt('SICK DRIFT!', Math.min(800, STATE.driftScore));
         STATE.driftScore = 0;
       }
     } else {
       PHYSICS.lateralVelocity *= 0.8;
-      if (STATE.driftScore > 0) STATE.driftScore = 0;
+      STATE.driftScore = 0;
     }
 
-    // Next proposed position
     const nextX = PHYSICS.x + Math.sin(PHYSICS.rotY) * PHYSICS.speed + Math.cos(PHYSICS.rotY) * PHYSICS.lateralVelocity;
     const nextZ = PHYSICS.z + Math.cos(PHYSICS.rotY) * PHYSICS.speed - Math.sin(PHYSICS.rotY) * PHYSICS.lateralVelocity;
 
-    // Collision detection with buildings
-    const playerRadius = 2.0;
+    // Building Collision
+    const pad = 1.8;
     let collided = false;
-
     for (let i = 0; i < colliders.length; i++) {
-      const col = colliders[i];
-      // Quick distance check before box test
-      if (Math.abs(col.obj.position.x - nextX) < BLOCK_SIZE / 2 + playerRadius &&
-          Math.abs(col.obj.position.z - nextZ) < BLOCK_SIZE / 2 + playerRadius) {
+      const c = colliders[i];
+      if (nextX + pad > c.minX && nextX - pad < c.maxX &&
+          nextZ + pad > c.minZ && nextZ - pad < c.maxZ) {
         collided = true;
         break;
       }
     }
 
+    // Traffic Collision
+    trafficCars.forEach(tc => {
+      const dx = nextX - tc.x;
+      const dz = nextZ - tc.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 3.2) {
+        collided = true;
+        sound.playCrash();
+        tc.speed = -tc.speed * 0.5;
+
+        // If hitting a special cartel target car
+        if (tc.isSpecialTarget && STATE.currentLevel === 2 && STATE.levelStage === 0) {
+          tc.health -= 40;
+          triggerStunt('TARGET HIT!', 500);
+          if (tc.health <= 0) {
+            STATE.levelStage = 1;
+            playerCar.bodyMat.color.setHex(0xffd700); // Turned into gold car!
+            setWantedLevel(3);
+            showStoryDialog('TONY "THE FIXER"', '"CARTEL RIDE STOLEN! You got 3 stars on your tail! Deliver it to the Chop Shop Safehouse!"', 7000);
+            document.getElementById('mission-instruction').textContent = 'Evade cops and deliver to Chop Shop Safehouse!';
+            beaconGroup.position.set(-HALF_MAP + 30, 0, -HALF_MAP + 30);
+            scene.remove(tc.mesh);
+          }
+        } else if (STATE.wantedLevel === 0 && Math.abs(PHYSICS.speed) > 0.4) {
+          setWantedLevel(1); // Crashing into civilians alerts police
+        }
+      }
+    });
+
     if (!collided) {
       PHYSICS.x = nextX;
       PHYSICS.z = nextZ;
     } else {
-      // Bounce recoil and speed loss
-      PHYSICS.speed = -PHYSICS.speed * 0.4;
+      PHYSICS.speed = -PHYSICS.speed * 0.35;
       sound.playCrash();
-
-      // Minor damage on hard impact
-      if (Math.abs(PHYSICS.speed) > 0.3) {
+      if (Math.abs(PHYSICS.speed) > 0.25) {
         if (STATE.armor > 0) STATE.armor = Math.max(0, STATE.armor - 10);
         else STATE.health = Math.max(0, STATE.health - 10);
-
-        // Crashing alerts police if wanted level is 0
-        if (STATE.wantedLevel === 0 && Math.random() > 0.5) {
-          setWantedLevel(1);
-        }
       }
     }
 
-    // Update 3D car position & orientation
     playerCar.group.position.set(PHYSICS.x, 0, PHYSICS.z);
     playerCar.group.rotation.y = PHYSICS.rotY;
 
-    // Animate wheels
     playerCar.wheels.forEach(w => {
-      w.mesh.rotation.x += PHYSICS.speed * 1.4;
-      if (w.front) {
-        w.mesh.rotation.y = PHYSICS.steerAngle * 8;
-      }
+      w.mesh.rotation.x += PHYSICS.speed * 1.2;
+      if (w.front) w.mesh.rotation.y = PHYSICS.steerAngle * 6;
     });
 
-    // Audio engine pitch
     sound.setEngineSpeed(Math.abs(PHYSICS.speed) / PHYSICS.maxSpeed);
+
+    // --- MISSION BEACON TRIGGER CHECK ---
+    if (beaconGroup.visible) {
+      const bdx = beaconGroup.position.x - PHYSICS.x;
+      const bdz = beaconGroup.position.z - PHYSICS.z;
+      const distToBeacon = Math.sqrt(bdx * bdx + bdz * bdz);
+
+      if (distToBeacon < 4.5) {
+        // Handle Mission Events
+        if (STATE.currentLevel === 1) {
+          if (STATE.levelStage === 0) {
+            // Picked up diamond case
+            STATE.levelStage = 1;
+            sound.playCashJingle();
+            triggerStunt('DIAMOND CASE STOLEN!', 1000);
+            setWantedLevel(2);
+            showStoryDialog('TONY "THE FIXER"', '"You got the stones! 2 squad cars inbound! Shake the heat and deliver to Palm Motel!"', 7000);
+            document.getElementById('mission-instruction').textContent = 'Evade police or reach the Palm Safehouse!';
+            beaconGroup.position.set(-STEP * 2, 0, -STEP * 2);
+          } else {
+            // Reached Safehouse
+            completeLevel();
+          }
+        } else if (STATE.currentLevel === 2) {
+          if (STATE.levelStage === 1) {
+            completeLevel();
+          }
+        } else if (STATE.currentLevel === 3) {
+          STATE.cratesCollected++;
+          sound.playCashJingle();
+          triggerStunt('CONTRABAND CRATE ' + STATE.cratesCollected + '/3', 1500);
+
+          if (STATE.cratesCollected === 1) {
+            setWantedLevel(3);
+            beaconGroup.position.set(HALF_MAP - 30, 0, HALF_MAP - 30);
+            document.getElementById('mission-instruction').textContent = 'Collect Crate 2/3!';
+          } else if (STATE.cratesCollected === 2) {
+            setWantedLevel(4);
+            beaconGroup.position.set(-HALF_MAP + 30, 0, HALF_MAP - 30);
+            document.getElementById('mission-instruction').textContent = 'Collect Crate 3/3!';
+          } else {
+            // All collected, escape to harbor!
+            document.getElementById('mission-instruction').textContent = 'ALL CRATES COLLECTED! ESCAPE TO THE HARBOR BOAT!';
+            beaconGroup.position.set(0, 0, -HALF_MAP + 15);
+            if (distToBeacon < 4.0 && STATE.cratesCollected >= 3) {
+              completeLevel();
+            }
+          }
+        }
+      }
+    }
   }
 
-  // --- POLICE AI UPDATE LOOP ---
+  // --- TRAFFIC UPDATE ---
+  function updateTraffic() {
+    trafficCars.forEach(tc => {
+      tc.x += Math.sin(tc.rotY) * tc.speed;
+      tc.z += Math.cos(tc.rotY) * tc.speed;
+
+      // Wrap around city map bounds
+      if (tc.x > HALF_MAP) tc.x = -HALF_MAP;
+      if (tc.x < -HALF_MAP) tc.x = HALF_MAP;
+      if (tc.z > HALF_MAP) tc.z = -HALF_MAP;
+      if (tc.z < -HALF_MAP) tc.z = HALF_MAP;
+
+      tc.mesh.position.set(tc.x, 0, tc.z);
+    });
+  }
+
+  // --- POLICE UPDATE ---
   function updatePolice() {
     if (policeCars.length === 0) return;
 
     let closestDist = 9999;
+    policeCars.forEach(cop => {
+      cop.flashTimer += 0.2;
+      cop.sirenMesh.material.color.setHex(Math.sin(cop.flashTimer) > 0 ? 0xff0033 : 0x0066ff);
 
-    policeCars.forEach((cop, idx) => {
-      // Siren flashing lights
-      cop.flashTimer += 0.15;
-      cop.redLight.intensity = Math.sin(cop.flashTimer) > 0 ? 3.5 : 0;
-      cop.blueLight.intensity = Math.sin(cop.flashTimer) <= 0 ? 3.5 : 0;
-
-      // Distance to player
       const dx = PHYSICS.x - cop.x;
       const dz = PHYSICS.z - cop.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
       if (dist < closestDist) closestDist = dist;
 
-      // Desired angle towards player
       const targetAngle = Math.atan2(dx, dz);
-      let angleDiff = targetAngle - cop.rotY;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      let diff = targetAngle - cop.rotY;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
 
-      // Turn towards player smoothly
-      cop.rotY += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), 0.035);
-
-      // Accelerate towards player
+      cop.rotY += Math.sign(diff) * Math.min(Math.abs(diff), 0.035);
       cop.speed = Math.min(cop.maxSpeed, cop.speed + 0.02);
 
-      // Move cop
       cop.x += Math.sin(cop.rotY) * cop.speed;
       cop.z += Math.cos(cop.rotY) * cop.speed;
       cop.mesh.position.set(cop.x, 0, cop.z);
       cop.mesh.rotation.y = cop.rotY;
 
-      // Police Car vs Player Collision
-      if (dist < 4.2) {
-        // Ramming collision
-        sound.playCrash();
-        PHYSICS.speed *= 0.6;
+      if (dist < 3.8) {
         cop.pinTime += 0.016;
-
-        // If pinned for 3 seconds -> Busted!
-        if (cop.pinTime > 2.8) {
-          triggerBusted();
-        }
+        if (cop.pinTime > 2.5) triggerBusted();
       } else {
         cop.pinTime = Math.max(0, cop.pinTime - 0.02);
       }
     });
 
-    // Check evasion status
     if (closestDist > 65 && STATE.wantedLevel > 0) {
       if (!STATE.isEvading) {
         STATE.isEvading = true;
@@ -998,84 +1086,57 @@
         updateWantedStars();
       }
       STATE.evadeTimer += 0.016;
-      if (STATE.evadeTimer > 8.0) {
-        // Escaped!
+      if (STATE.evadeTimer > 7.0) {
         setWantedLevel(0);
         STATE.isEvading = false;
-        triggerStunt('POLICE EVADED!', 1500);
+        triggerStunt('POLICE EVADED!', 1200);
         policeCars.forEach(p => scene.remove(p.mesh));
         policeCars.length = 0;
         updateWantedStars();
       }
-    } else {
-      if (STATE.isEvading) {
-        STATE.isEvading = false;
-        updateWantedStars();
-      }
+    } else if (STATE.isEvading) {
+      STATE.isEvading = false;
+      updateWantedStars();
     }
   }
 
-  // --- CAMERA UPDATE ---
+  // --- CAMERA & BEACON ROTATION ---
   function updateCamera() {
+    // Rotate 3D Mission Beacon diamond
+    if (beaconGroup.visible) {
+      diamondMesh.rotation.y += 0.04;
+      diamondMesh.position.y = 3.5 + Math.sin(Date.now() * 0.004) * 0.6;
+    }
+
     if (STATE.cameraMode === 0) {
-      // Close 3rd person chase camera (Action GTA style)
-      const dist = 11.0;
-      const height = 4.2;
-      const targetCamX = PHYSICS.x - Math.sin(PHYSICS.rotY) * dist;
-      const targetCamZ = PHYSICS.z - Math.cos(PHYSICS.rotY) * dist;
-
-      camera.position.x += (targetCamX - camera.position.x) * 0.12;
-      camera.position.y += (height - camera.position.y) * 0.12;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.12;
+      const targetCamX = PHYSICS.x - Math.sin(PHYSICS.rotY) * 10.5;
+      const targetCamZ = PHYSICS.z - Math.cos(PHYSICS.rotY) * 10.5;
+      camera.position.x += (targetCamX - camera.position.x) * 0.15;
+      camera.position.y += (4.0 - camera.position.y) * 0.15;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.15;
       camera.lookAt(PHYSICS.x, 1.2, PHYSICS.z);
-
     } else if (STATE.cameraMode === 1) {
-      // High cinematic chase camera
-      const dist = 22.0;
-      const height = 12.0;
-      const targetCamX = PHYSICS.x - Math.sin(PHYSICS.rotY) * dist;
-      const targetCamZ = PHYSICS.z - Math.cos(PHYSICS.rotY) * dist;
-
-      camera.position.x += (targetCamX - camera.position.x) * 0.08;
-      camera.position.y += (height - camera.position.y) * 0.08;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.08;
+      const targetCamX = PHYSICS.x - Math.sin(PHYSICS.rotY) * 20.0;
+      const targetCamZ = PHYSICS.z - Math.cos(PHYSICS.rotY) * 20.0;
+      camera.position.x += (targetCamX - camera.position.x) * 0.1;
+      camera.position.y += (11.0 - camera.position.y) * 0.1;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.1;
       camera.lookAt(PHYSICS.x, 1.0, PHYSICS.z);
-
-    } else if (STATE.cameraMode === 2) {
-      // Classic Top-Down Camera (GTA 1 / GTA 2 / Chinatown Wars)
-      camera.position.x += (PHYSICS.x - camera.position.x) * 0.15;
-      camera.position.y = 48.0;
-      camera.position.z += (PHYSICS.z - camera.position.z) * 0.15;
+    } else {
+      camera.position.x += (PHYSICS.x - camera.position.x) * 0.2;
+      camera.position.y = 44.0;
+      camera.position.z += (PHYSICS.z - camera.position.z) * 0.2;
       camera.lookAt(PHYSICS.x, 0, PHYSICS.z);
     }
   }
 
-  // --- UPDATE PARTICLES & SKIDMARKS ---
-  function updateParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.life--;
-      p.mesh.position.x += p.vx;
-      p.mesh.position.y += p.vy;
-      p.mesh.position.z += p.vz;
-      p.mesh.scale.multiplyScalar(1.03);
-      p.mesh.material.opacity = (p.life / p.maxLife) * 0.5;
-
-      if (p.life <= 0) {
-        scene.remove(p.mesh);
-        particles.splice(i, 1);
+  function updateSkids() {
+    skidPool.forEach(s => {
+      if (s.life > 0) {
+        s.life--;
+        if (s.life <= 0) s.mesh.visible = false;
       }
-    }
-
-    for (let i = skidmarks.length - 1; i >= 0; i--) {
-      const s = skidmarks[i];
-      s.life--;
-      if (s.life < 40) s.mesh.material.opacity = (s.life / 40) * 0.6;
-      if (s.life <= 0) {
-        scene.remove(s.mesh);
-        skidmarks.splice(i, 1);
-      }
-    }
+    });
   }
 
   // --- MAIN ANIMATION LOOP ---
@@ -1083,94 +1144,57 @@
     requestAnimationFrame(animate);
 
     updateVehicle();
+    updateTraffic();
     updatePolice();
     updateCamera();
-    updateParticles();
+    updateSkids();
     drawRadar();
     updateHUD();
 
     renderer.render(scene, camera);
   }
 
-  // --- KEYBOARD CONTROLS (DESKTOP) ---
+  // --- KEYBOARD LISTENERS ---
   window.addEventListener('keydown', (e) => {
-    sound.init(); // Audio unlock on user interaction
-
+    sound.init();
     switch(e.code) {
-      case 'KeyW':
-      case 'ArrowUp':
-        INPUT.gas = true;
-        break;
-      case 'KeyS':
-      case 'ArrowDown':
-        INPUT.brake = true;
-        break;
-      case 'KeyA':
-      case 'ArrowLeft':
-        INPUT.left = true;
-        break;
-      case 'KeyD':
-      case 'ArrowRight':
-        INPUT.right = true;
-        break;
-      case 'Space':
-        INPUT.drift = true;
-        break;
-      case 'KeyC':
-        STATE.cameraMode = (STATE.cameraMode + 1) % 3;
-        break;
+      case 'KeyW': case 'ArrowUp': INPUT.gas = true; break;
+      case 'KeyS': case 'ArrowDown': INPUT.brake = true; break;
+      case 'KeyA': case 'ArrowLeft': INPUT.left = true; break;
+      case 'KeyD': case 'ArrowRight': INPUT.right = true; break;
+      case 'Space': INPUT.drift = true; break;
+      case 'KeyC': STATE.cameraMode = (STATE.cameraMode + 1) % 3; break;
       case 'KeyR':
         PHYSICS.speed = 0;
         PHYSICS.rotY = 0;
         playerCar.group.rotation.set(0, 0, 0);
         break;
-      case 'KeyH':
-        sound.playHorn();
-        break;
+      case 'KeyH': sound.playHorn(); break;
     }
   });
 
   window.addEventListener('keyup', (e) => {
     switch(e.code) {
-      case 'KeyW':
-      case 'ArrowUp':
-        INPUT.gas = false;
-        break;
-      case 'KeyS':
-      case 'ArrowDown':
-        INPUT.brake = false;
-        break;
-      case 'KeyA':
-      case 'ArrowLeft':
-        INPUT.left = false;
-        break;
-      case 'KeyD':
-      case 'ArrowRight':
-        INPUT.right = false;
-        break;
-      case 'Space':
-        INPUT.drift = false;
-        break;
+      case 'KeyW': case 'ArrowUp': INPUT.gas = false; break;
+      case 'KeyS': case 'ArrowDown': INPUT.brake = false; break;
+      case 'KeyA': case 'ArrowLeft': INPUT.left = false; break;
+      case 'KeyD': case 'ArrowRight': INPUT.right = false; break;
+      case 'Space': INPUT.drift = false; break;
     }
   });
 
-  // --- TOUCH CONTROLS (MOBILE) ---
   function setupTouchBtn(btnId, inputKey) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
-
     btn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       sound.init();
       INPUT[inputKey] = true;
     }, { passive: false });
-
     btn.addEventListener('touchend', (e) => {
       e.preventDefault();
       INPUT[inputKey] = false;
     }, { passive: false });
-
-    // Also support mouse for testing in desktop responsive mode
     btn.addEventListener('mousedown', () => { sound.init(); INPUT[inputKey] = true; });
     btn.addEventListener('mouseup', () => { INPUT[inputKey] = false; });
   }
@@ -1181,7 +1205,6 @@
   setupTouchBtn('btn-right', 'right');
   setupTouchBtn('btn-drift', 'drift');
 
-  // --- UI BUTTONS (CAM, RADIO, GARAGE) ---
   document.getElementById('cam-btn').addEventListener('click', () => {
     sound.init();
     STATE.cameraMode = (STATE.cameraMode + 1) % 3;
@@ -1195,13 +1218,10 @@
     radioStatus.textContent = isPlaying ? 'SYNTHWAVE FM' : 'OFF';
   });
 
-  // Garage Customization & Rewarded Ad Business Simulation
   const garageModal = document.getElementById('garage-modal');
   document.getElementById('close-garage-btn').addEventListener('click', () => {
     garageModal.classList.add('hidden');
   });
-
-  // Double click logo or district to open garage
   document.querySelector('.game-logo').addEventListener('click', () => {
     garageModal.classList.remove('hidden');
   });
@@ -1216,35 +1236,33 @@
   document.querySelectorAll('.swatch-neon').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const neon = e.target.getAttribute('data-neon');
-      playerCar.underglow.color.setStyle(neon);
+      playerCar.underglowMat.color.setStyle(neon);
     });
   });
 
-  // Rewarded Ad Simulation Button (Demonstrates Google AdMob / Web Portal Monetization)
   document.getElementById('ad-cash-btn').addEventListener('click', () => {
     const btn = document.getElementById('ad-cash-btn');
-    btn.textContent = '⏳ SIMULATING 5s REWARDED VIDEO AD...';
+    btn.textContent = '⏳ SIMULATING 3s REWARDED VIDEO AD...';
     btn.disabled = true;
-
     setTimeout(() => {
       STATE.cash += 5000;
       sound.playCashJingle();
-      updateHUD();
+      updateHUD(true);
       btn.textContent = '📺 WATCH AD: FREE +$5,000';
       btn.disabled = false;
-      alert('🎉 Rewarded Ad Completed! You earned +$5,000 cash for your ride.');
-    }, 2500);
+      alert('🎉 Rewarded Ad Completed! +$5,000 Cash added.');
+    }, 2000);
   });
 
-  // Window Resize
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Start game engine
-  updateHUD();
+  // Start Level 1 Story & Engine
+  startLevel(1);
+  updateHUD(true);
   animate();
 
 })();

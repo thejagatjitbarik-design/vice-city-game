@@ -187,9 +187,188 @@ html, body {
   transition: background 0.2s, border-color 0.2s;
 }
 
-.hud-btn:hover {
-  background: rgba(255, 0, 127, 0.6);
-  border-color: #ff007f;
+.hud-buttons-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* MISSION & STORY HUD */
+#mission-banner {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14, 6, 26, 0.88);
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 8px 22px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 10px rgba(255, 215, 0, 0.2);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  max-width: 90%;
+}
+
+.mission-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+
+#mission-level-badge {
+  background: #ff007f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+#mission-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+#mission-instruction {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 2px #000;
+}
+
+#mission-sub-status {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: #00f0ff;
+  margin-top: 2px;
+}
+
+/* STORY PHONE CALL DIALOG */
+.dialog-box {
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 580px;
+  background: rgba(8, 4, 18, 0.92);
+  border: 2px solid #00f0ff;
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+  pointer-events: auto;
+  animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.caller-avatar {
+  font-size: 30px;
+  background: #ff007f;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px #ff007f;
+  animation: pulsePhone 1s infinite alternate;
+}
+
+@keyframes pulsePhone {
+  0% { transform: scale(0.95); filter: brightness(1); }
+  100% { transform: scale(1.08); filter: brightness(1.3); }
+}
+
+.caller-content {
+  flex: 1;
+}
+
+.caller-name {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #00f0ff;
+  margin-bottom: 2px;
+}
+
+.caller-msg {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+}
+
+@keyframes slideUp {
+  0% { transform: translate(-50%, 40px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* LEVEL UP / VICTORY MODAL */
+.level-up-content {
+  border-color: #ffd700;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+}
+
+.level-up-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 34px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 3px;
+  text-shadow: 0 0 20px #ffd700;
+  margin-bottom: 4px;
+}
+
+#completed-level-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #00f0ff;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.reward-box {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.reward-box p {
+  font-size: 11px;
+  font-weight: 800;
+  color: #aaa;
+  letter-spacing: 1px;
+}
+
+.reward-amount {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: #39ff14;
+  text-shadow: 0 0 12px #39ff14;
+  margin-top: 4px;
+}
+
+.story-epilogue {
+  font-size: 13px;
+  color: #ddd;
+  line-height: 1.4;
+  margin-bottom: 22px;
 }
 
 /* STUNT & ACTION POPUP */
