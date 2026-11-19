@@ -39,45 +39,11 @@ function saveJSON(file, data) {
   } catch (e) {}
 }
 
-// User Accounts Store
-let accounts = loadJSON(USERS_FILE, {
-  "viper@viceoutlaws.com": {
-    email: "viper@viceoutlaws.com",
-    password: "password123",
-    name: "Viper",
-    avatar: "🕶️",
-    cash: 45000,
-    level: 3,
-    status: "active",
-    registeredAt: Date.now() - 86400000 * 4,
-    lastLogin: Date.now() - 3600000,
-    playtimeMinutes: 240,
-    ownedVehicles: ["Infernus GT", "Cartel Supercar"],
-    ownedProperties: ["Palm Motel Room", "Ocean Beach Loft"],
-    missionsCompleted: 2
-  },
-  "tommy@viceoutlaws.com": {
-    email: "tommy@viceoutlaws.com",
-    password: "password123",
-    name: "Tommy V.",
-    avatar: "👑",
-    cash: 125000,
-    level: 6,
-    status: "active",
-    registeredAt: Date.now() - 86400000 * 12,
-    lastLogin: Date.now() - 7200000,
-    playtimeMinutes: 720,
-    ownedVehicles: ["Banshee Turbo", "Police Interceptor"],
-    ownedProperties: ["Starfish Island Mansion"],
-    missionsCompleted: 5
-  }
-});
+// User Accounts Store (Clean 0 Baseline)
+let accounts = loadJSON(USERS_FILE, {});
 
-// Admin Audit Logs
-let auditLogs = loadJSON(LOGS_FILE, [
-  { id: "AUD-101", admin: "SuperAdmin", action: "SYSTEM_INIT", target: "SERVER", reason: "Vice Outlaws engine booted", timestamp: new Date(Date.now() - 3600000).toISOString() },
-  { id: "AUD-102", admin: "SuperAdmin", action: "SECURITY_UPDATE", target: "AUTH_GATE", reason: "Passcode verification enforced", timestamp: new Date(Date.now() - 1800000).toISOString() }
-]);
+// Admin Audit Logs (Clean 0 Baseline)
+let auditLogs = loadJSON(LOGS_FILE, []);
 
 // Email Dispatch Logs (viewable only in Admin Panel)
 const emailDispatchLogs = [];
@@ -85,14 +51,14 @@ const emailDispatchLogs = [];
 // OTP Store
 const otpStore = new Map();
 
-// Game World State (Shared with connected players)
+// Game World State (Shared with connected players - High-visibility Sunny default)
 let worldState = {
-  timeOfDay: "21:00",
-  weather: "thunderstorm", // 'sunny' | 'sunset' | 'night' | 'rain' | 'thunderstorm'
+  timeOfDay: "12:00",
+  weather: "sunny", // 'sunny' | 'sunset' | 'night' | 'rain' | 'thunderstorm'
   trafficDensity: 1.0,
   pedestrianDensity: 1.0,
   policeStrictness: "NORMAL",
-  serverAnnouncement: "Welcome to Vice Outlaws! Experience the neon streets.",
+  serverAnnouncement: "Welcome to Vice Outlaws! The sun is shining over Vice City.",
   maintenanceMode: false
 };
 
@@ -309,25 +275,33 @@ app.post('/api/login', (req, res) => {
 // 2. ADMIN PANEL SECURITY & MANAGEMENT APIS
 // ==========================================
 
-// Admin Authentication Gate
+// Admin Authentication Gate (Secure ID & Password)
 app.post('/api/admin/auth', (req, res) => {
-  const { passcode } = req.body;
-  if (passcode === 'admin777' || passcode === 'vice777' || passcode === 'admin') {
-    addAuditLog('Admin', 'ADMIN_LOGIN', 'DASHBOARD', 'Passcode verified');
+  const { username, password, passcode } = req.body;
+  const expectedUser = (process.env.ADMIN_USER || 'admin').trim();
+  const expectedPass = (process.env.ADMIN_PASS || 'Admin@Vice2026!').trim();
+
+  // Validate credentials (also support passcode backwards compatibility)
+  const isUserValid = !username || username.trim().toLowerCase() === expectedUser.toLowerCase();
+  const inputPass = (password || passcode || '').trim();
+  const isPassValid = (inputPass === expectedPass || inputPass === 'admin777' || inputPass === 'vice777');
+
+  if (isUserValid && isPassValid) {
+    addAuditLog('Admin', 'ADMIN_LOGIN', 'DASHBOARD', 'Secure admin session authenticated');
     return res.json({
       success: true,
       token: 'vice_admin_token_' + Date.now(),
       admin: {
-        name: 'Master Commander',
+        name: expectedUser.toUpperCase(),
         role: 'Super Administrator',
         avatar: '👑'
       }
     });
   }
-  return res.status(401).json({ success: false, message: 'Access Denied: Invalid Admin Passcode.' });
+  return res.status(401).json({ success: false, message: 'Access Denied: Invalid Admin Username or Password.' });
 });
 
-// Admin Stats & Overview
+// Admin Stats & Overview (Strict Ground Zero Baseline)
 app.get('/api/admin/stats', (req, res) => {
   const playerList = Object.values(accounts);
   const totalCash = playerList.reduce((sum, u) => sum + (u.cash || 0), 0);
@@ -339,16 +313,30 @@ app.get('/api/admin/stats', (req, res) => {
     stats: {
       totalPlayers: playerList.length,
       activePlayers: activeCount,
-      onlineNow: Math.max(1, liveSessions.size),
+      onlineNow: liveSessions.size,
       newToday: playerList.filter(u => Date.now() - u.registeredAt < 86400000).length,
-      missionsCompleted: totalMissions + 38,
-      vehiclesOwned: playerList.reduce((sum, u) => sum + (u.ownedVehicles?.length || 1), 0),
+      missionsCompleted: totalMissions,
+      vehiclesOwned: playerList.reduce((sum, u) => sum + (u.ownedVehicles?.length || 0), 0),
       propertiesOwned: playerList.reduce((sum, u) => sum + (u.ownedProperties?.length || 0), 0),
       currencyInCirculation: totalCash,
       serverUptime: Math.round(process.uptime()),
       serverHealth: 'OPTIMAL (99.98% SLA)'
     }
   });
+});
+
+// Admin Reset All to Zero
+app.post('/api/admin/reset-all', (req, res) => {
+  accounts = {};
+  auditLogs.length = 0;
+  emailDispatchLogs.length = 0;
+  liveSessions.clear();
+  worldState.weather = "sunny";
+  worldState.timeOfDay = "12:00";
+  saveJSON(USERS_FILE, accounts);
+  saveJSON(LOGS_FILE, auditLogs);
+  addAuditLog('Admin', 'SYSTEM_RESET', 'ALL_SYSTEMS', 'Reset all database accounts and counters to ground zero');
+  return res.json({ success: true, message: 'All player accounts, stats, and logs have been reset to zero.' });
 });
 
 // Player Management

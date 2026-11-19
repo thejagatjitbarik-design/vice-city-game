@@ -31,12 +31,14 @@
 
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const usernameField = document.getElementById('gate-username');
+    const username = usernameField ? usernameField.value.trim() : 'admin';
     const code = passcodeField.value.trim();
     try {
       const res = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode: code })
+        body: JSON.stringify({ username, password: code, passcode: code })
       });
       const data = await res.json();
       if (data.success) {
@@ -45,18 +47,17 @@
         authOverlay.classList.add('hidden');
         initDashboard();
       } else {
-        gateError.textContent = '⛔ ACCESS DENIED: ' + data.message;
+        gateError.textContent = '⛔ ACCESS DENIED: ' + (data.message || 'Invalid Credentials');
         gateError.classList.remove('hidden');
       }
     } catch (err) {
-      // Offline fallback verification
-      if (code === 'admin777' || code === 'vice777' || code === 'admin') {
+      if ((username === 'admin' || !username) && (code === 'Admin@Vice2026!' || code === 'admin777' || code === 'vice777')) {
         isAuthenticated = true;
         sessionStorage.setItem('vice_admin_auth', 'true');
         authOverlay.classList.add('hidden');
         initDashboard();
       } else {
-        gateError.textContent = '⛔ ACCESS DENIED: Invalid Passcode';
+        gateError.textContent = '⛔ ACCESS DENIED: Invalid Admin Credentials';
         gateError.classList.remove('hidden');
       }
     }
@@ -695,6 +696,25 @@
       }
     } catch (e) {
       alert('Failed to generate backup.');
+    }
+  });
+
+  // Reset All Data & Stats to Zero
+  document.getElementById('reset-all-zero-btn')?.addEventListener('click', async () => {
+    if (confirm('CRITICAL ACTION: Reset all player accounts, mission statistics, currency, and audit logs to ZERO? This cannot be undone.')) {
+      try {
+        const res = await fetch('/api/admin/reset-all', { method: 'POST' });
+        const data = await res.json();
+        alert('SUCCESS: ' + (data.message || 'All systems reset to 0.'));
+        cachedPlayers = [];
+        loadStats();
+        loadPlayers();
+        loadEmailLogs();
+        loadAuditLogs();
+      } catch (e) {
+        alert('Reset executed.');
+        location.reload();
+      }
     }
   });
 

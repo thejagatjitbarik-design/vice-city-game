@@ -24,14 +24,18 @@
       </div>
       <form id="admin-login-form">
         <div class="form-group">
-          <label>SECURITY PASSCODE</label>
-          <input type="password" id="gate-passcode" placeholder="Enter master passcode (admin777)..." autocomplete="off" autofocus required>
+          <label>ADMIN USERNAME / ID</label>
+          <input type="text" id="gate-username" placeholder="Enter Admin ID (default: admin)..." autocomplete="username" autofocus required>
         </div>
-        <div id="gate-error" class="gate-error hidden">⛔ ACCESS DENIED: Invalid Passcode</div>
-        <button type="submit" class="btn-neon-gold">VERIFY CREDENTIALS &amp; ENTER</button>
+        <div class="form-group">
+          <label>ADMIN MASTER PASSWORD</label>
+          <input type="password" id="gate-passcode" placeholder="Enter Master Password..." autocomplete="current-password" required>
+        </div>
+        <div id="gate-error" class="gate-error hidden">⛔ ACCESS DENIED: Invalid Admin Credentials</div>
+        <button type="submit" class="btn-neon-gold">VERIFY CREDENTIALS &amp; ENTER COMMAND CENTER</button>
       </form>
       <div class="auth-hint">
-        <span>Default Developer Passcode: <b>admin777</b></span>
+        <span>Restricted Portal &bull; Unauthorized access logged and prohibited</span>
         <a href="index.html" class="back-to-game">&larr; Return to Game</a>
       </div>
     </div>
@@ -871,6 +875,11 @@
               <input type="file" id="restore-file-input" accept=".json" style="margin-bottom:10px;">
               <button class="btn-danger" id="restore-backup-btn">⚠️ RESTORE SYSTEM STATE</button>
             </div>
+          </div>
+          <div class="panel-card" style="margin-top:20px; border: 1px solid rgba(255, 0, 85, 0.4); background: rgba(255, 0, 85, 0.05);">
+            <div class="card-title" style="color:#ff3366;">RESET ALL SYSTEM DATA &amp; STATS TO GROUND ZERO</div>
+            <p style="font-size:12px; color:#aaa; margin-bottom:14px;">Clears all registered player accounts, mission progression, currency totals, and audit logs. Resets every single admin counter to 0.</p>
+            <button class="btn-danger" id="reset-all-zero-btn">🔄 RESET ALL DATABASE &amp; METRICS TO 0</button>
           </div>
         </section>
 

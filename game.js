@@ -218,32 +218,38 @@
     jump: false
   };
 
-  // --- THREE.JS INITIALIZATION ---
+  // --- THREE.JS INITIALIZATION & HIGH-VISIBILITY ATMOSPHERE ---
   const container = document.getElementById('game-container');
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0e0618);
-  scene.fog = new THREE.FogExp2(0x130722, 0.005);
+  scene.background = new THREE.Color(0x60b6ff); // Radiant Miami Tropical Daylight Sky
+  scene.fog = new THREE.Fog(0x8cd4ff, 140, 550); // Linear Fog: 100% CRYSTAL CLEAR within 140m!
 
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.5, 400);
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.5, 600);
+  camera.position.set(0, 4.5, -11.0);
+  camera.lookAt(0, 1.2, 0);
 
   const renderer = new THREE.WebGLRenderer({
-    antialias: false,
+    antialias: true,
     powerPreference: 'high-performance',
     stencil: false,
     depth: true
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = false;
   container.appendChild(renderer.domElement);
 
   const sound = new SoundEngine();
 
-  const ambientLight = new THREE.AmbientLight(0x553366, 1.6);
+  // Natural Sunlight & Hemisphere Skylight for full 3D visibility
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0xff66bb, 1.2);
-  dirLight.position.set(40, 80, 40);
+  const hemiLight = new THREE.HemisphereLight(0x70d6ff, 0x4a4030, 1.5);
+  scene.add(hemiLight);
+
+  const dirLight = new THREE.DirectionalLight(0xfff4db, 2.2);
+  dirLight.position.set(60, 160, 50);
   scene.add(dirLight);
 
   // --- CITY GRID CONFIGURATION ---
@@ -253,26 +259,26 @@
   const STEP = BLOCK_SIZE + ROAD_WIDTH;
   const HALF_MAP = (CITY_SIZE * STEP) / 2;
 
-  // Ground Asphalt
-  const groundGeo = new THREE.PlaneGeometry(HALF_MAP * 2.6, HALF_MAP * 2.6);
-  const groundMat = new THREE.MeshBasicMaterial({ color: 0x121217 });
+  // Ground Asphalt - Realistic dark slate asphalt catching sunlight
+  const groundGeo = new THREE.PlaneGeometry(HALF_MAP * 2.8, HALF_MAP * 2.8);
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0x30343f });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  // Window Texture
+  // Window Texture - Brightly illuminated high-contrast windows
   function createWindowTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#161420';
+    ctx.fillStyle = '#1f242d';
     ctx.fillRect(0, 0, 128, 128);
 
-    const colors = ['#00f0ff', '#ff007f', '#ffd700', '#ffffff'];
+    const colors = ['#ffffff', '#00f0ff', '#ffd700', '#ff007f', '#70e000', '#ffaa00'];
     for (let y = 8; y < 120; y += 18) {
       for (let x = 6; x < 120; x += 16) {
-        if (Math.random() > 0.45) {
+        if (Math.random() > 0.35) {
           ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
           ctx.fillRect(x, y, 9, 10);
         }
@@ -288,7 +294,7 @@
 
   const buildingMat = new THREE.MeshLambertMaterial({
     map: buildingTexture,
-    color: 0xcccccc
+    color: 0xffffff
   });
 
   const buildingData = [];
@@ -312,10 +318,25 @@
     }
   }
 
+  // Instanced Sidewalk Curbs (Provides realistic 3D pavement around all city blocks)
+  const sidewalkGeo = new THREE.BoxGeometry(BLOCK_SIZE + 3.2, 0.35, BLOCK_SIZE + 3.2);
+  const sidewalkMat = new THREE.MeshLambertMaterial({ color: 0xced4da });
+  const sidewalkInstances = new THREE.InstancedMesh(sidewalkGeo, sidewalkMat, buildingData.length);
+  const dummy = new THREE.Object3D();
+
+  buildingData.forEach((b, i) => {
+    dummy.position.set(b.x, 0.175, b.z);
+    dummy.scale.set(1, 1, 1);
+    dummy.rotation.set(0, 0, 0);
+    dummy.updateMatrix();
+    sidewalkInstances.setMatrixAt(i, dummy.matrix);
+  });
+  sidewalkInstances.instanceMatrix.needsUpdate = true;
+  scene.add(sidewalkInstances);
+
   // Instanced Buildings
   const bBoxGeo = new THREE.BoxGeometry(1, 1, 1);
   const buildingInstances = new THREE.InstancedMesh(bBoxGeo, buildingMat, buildingData.length);
-  const dummy = new THREE.Object3D();
 
   buildingData.forEach((b, i) => {
     dummy.position.set(b.x, b.y, b.z);
@@ -2250,13 +2271,15 @@
     }
   });
 
-  // Check initial login state
-  if (currentUser && currentUser.email) {
-    updateAuthHeaderUI();
-    authModal.classList.add('hidden');
-  } else {
-    updateAuthHeaderUI();
-    authModal.classList.remove('hidden');
+  // Check initial login state (Default to instant in-game driving)
+  updateAuthHeaderUI();
+  authModal.classList.add('hidden');
+
+  const closeAuthBtn = document.getElementById('close-auth-btn');
+  if (closeAuthBtn) {
+    closeAuthBtn.addEventListener('click', () => {
+      authModal.classList.add('hidden');
+    });
   }
 
   // --- USER SETTINGS CONTROLLER (AVATARS & NICKNAME) ---
@@ -2312,205 +2335,50 @@
     triggerStunt('SETTINGS SAVED!', 0);
   });
 
-  // --- ADMIN COMMAND CONSOLE CONTROLLER WITH SECURITY PASSCODE ---
-  const adminModal = document.getElementById('admin-modal');
-  const adminPasscodeModal = document.getElementById('admin-passcode-modal');
-  const adminPasscodeInput = document.getElementById('admin-passcode-input');
-  const adminPasscodeError = document.getElementById('admin-passcode-error');
-  const adminPasscodeSubmit = document.getElementById('admin-passcode-submit');
-  const adminPasscodeCancel = document.getElementById('admin-passcode-cancel');
-  const adminLockBtn = document.getElementById('admin-lock-btn');
-  const adminBtn = document.getElementById('admin-btn');
-  const closeAdminBtn = document.getElementById('close-admin-btn');
-  const adminUsersList = document.getElementById('admin-users-list');
-  const adminUserCount = document.getElementById('admin-user-count');
-
-  function renderAdminUsers() {
-    const accounts = JSON.parse(localStorage.getItem('vice_outlaws_accounts') || '{}');
-    const emails = Object.keys(accounts);
-    adminUserCount.textContent = emails.length;
-    adminUsersList.innerHTML = '';
-
-    if (emails.length === 0) {
-      adminUsersList.innerHTML = '<div style="color:#888; padding:6px;">No registered accounts in local database yet.</div>';
-    } else {
-      emails.forEach(em => {
-        const row = document.createElement('div');
-        row.className = 'user-row';
-        row.innerHTML = `<span>👤 ${em}</span><span style="color:#39ff14;">ACTIVE</span>`;
-        adminUsersList.appendChild(row);
-      });
-    }
-  }
-
-  adminBtn.addEventListener('click', () => {
-    sound.init();
-    if (STATE.isAdminAuthed) {
-      renderAdminUsers();
-      adminModal.classList.remove('hidden');
-    } else {
-      adminPasscodeInput.value = '';
-      if (adminPasscodeError) adminPasscodeError.classList.add('hidden');
-      if (adminPasscodeModal) {
-        adminPasscodeModal.classList.remove('hidden');
-        setTimeout(() => adminPasscodeInput.focus(), 150);
-      }
-    }
-  });
-
-  function verifyAdminPasscode() {
-    const entered = adminPasscodeInput.value.trim();
-    if (entered === 'admin777' || entered === 'vice777' || entered === 'admin') {
-      STATE.isAdminAuthed = true;
-      adminPasscodeModal.classList.add('hidden');
-      renderAdminUsers();
-      adminModal.classList.remove('hidden');
-      sound.playCashJingle();
-      triggerStunt('👑 ADMIN CLEARANCE GRANTED!', 0);
-    } else {
-      if (adminPasscodeError) {
-        adminPasscodeError.textContent = '⛔ ACCESS DENIED: Invalid Passcode! (Default: admin777)';
-        adminPasscodeError.classList.remove('hidden');
-      }
-      sound.playCrash();
-    }
-  }
-
-  if (adminPasscodeSubmit) adminPasscodeSubmit.addEventListener('click', verifyAdminPasscode);
-  if (adminPasscodeInput) {
-    adminPasscodeInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') verifyAdminPasscode();
-    });
-  }
-  if (adminPasscodeCancel) {
-    adminPasscodeCancel.addEventListener('click', () => {
-      adminPasscodeModal.classList.add('hidden');
-    });
-  }
-  if (adminLockBtn) {
-    adminLockBtn.addEventListener('click', () => {
-      STATE.isAdminAuthed = false;
-      adminModal.classList.add('hidden');
-      triggerStunt('🔒 ADMIN CONSOLE LOCKED', 0);
-    });
-  }
-
-  closeAdminBtn.addEventListener('click', () => {
-    adminModal.classList.add('hidden');
-  });
-
-  // Admin Cheat Codes
-  document.getElementById('cheat-cash-btn').addEventListener('click', () => {
-    STATE.cash += 50000;
-    updateHUD(true);
-    sound.playCashJingle();
-    triggerStunt('CHEAT: +$50,000 CASH!', 0);
-  });
-
-  document.getElementById('cheat-god-btn').addEventListener('click', () => {
-    STATE.health = 100;
-    STATE.armor = 100;
-    updateHUD(true);
-    sound.playMissionSuccess();
-    triggerStunt('CHEAT: GOD MODE ACTIVE (100% HP/ARM)', 0);
-  });
-
-  document.getElementById('cheat-clear-cops').addEventListener('click', () => {
-    setWantedLevel(0);
-    policeCars.forEach(p => scene.remove(p.mesh));
-    policeCars.length = 0;
-    triggerStunt('CHEAT: COPS EVADED!', 0);
-  });
-
-  document.getElementById('cheat-5star-cops').addEventListener('click', () => {
-    setWantedLevel(5);
-    sound.playCrash();
-    triggerStunt('CHEAT: 5-STAR ARMY PURSUIT!', 0);
-  });
-
-  document.getElementById('cheat-turbo-btn').addEventListener('click', () => {
-    PHYSICS.maxSpeed = 2.8;
-    triggerStunt('CHEAT: 200 MPH TURBO ACTIVE!', 0);
-  });
-
-  document.getElementById('cheat-respawn-btn').addEventListener('click', () => {
-    PHYSICS.x = 0;
-    PHYSICS.z = 0;
-    PHYSICS.speed = 0;
-    playerCar.group.position.set(0, 0, 0);
-    triggerStunt('WARPED TO PLAZA', 0);
-  });
-
-  document.querySelectorAll('.warp-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const lvl = parseInt(e.target.getAttribute('data-level'), 10);
-      startLevel(lvl);
-      adminModal.classList.add('hidden');
-      triggerStunt('WARPED TO CHAPTER ' + lvl, 0);
-    });
-  });
-
-  document.getElementById('admin-wipe-users-btn').addEventListener('click', () => {
-    if (confirm('Wipe all registered player accounts from database?')) {
-      localStorage.removeItem('vice_outlaws_accounts');
-      localStorage.removeItem('vice_outlaws_user');
-      currentUser = null;
-      updateAuthHeaderUI();
-      renderAdminUsers();
-      alert('All user accounts wiped.');
-    }
-  });
-
-  // Admin Live Telemetry Updater
-  setInterval(() => {
-    if (!adminModal.classList.contains('hidden')) {
-      document.getElementById('telem-speed').textContent = Math.round(Math.abs(PHYSICS.speed) * 72) + ' MPH';
-      document.getElementById('telem-pos').textContent = Math.round(PHYSICS.x) + ', ' + Math.round(PHYSICS.z);
-      document.getElementById('telem-wanted').textContent = STATE.wantedLevel + ' ★';
-      document.getElementById('telem-cops').textContent = policeCars.length;
-    }
-  }, 100);
-
-  // --- DYNAMIC WEATHER & ATMOSPHERE ENGINE ---
-  STATE.currentWeather = 'sunset';
+  // --- DYNAMIC WEATHER & HIGH-VISIBILITY ATMOSPHERE ENGINE ---
+  STATE.currentWeather = 'sunny';
   function applyWeatherPreset(preset) {
     STATE.currentWeather = preset;
     switch(preset) {
       case 'sunny':
-        scene.background = new THREE.Color(0x5ca7d9);
-        scene.fog.color = new THREE.Color(0x73bde8);
-        scene.fog.density = 0.002;
+        scene.background = new THREE.Color(0x60b6ff);
+        scene.fog.color = new THREE.Color(0x8cd4ff);
+        scene.fog.near = 140; scene.fog.far = 550;
         ambientLight.color = new THREE.Color(0xffffff);
-        ambientLight.intensity = 1.8;
-        dirLight.color = new THREE.Color(0xfffaed);
-        dirLight.intensity = 2.0;
+        ambientLight.intensity = 1.1;
+        hemiLight.intensity = 1.5;
+        dirLight.color = new THREE.Color(0xfff4db);
+        dirLight.intensity = 2.2;
         break;
       case 'sunset':
-        scene.background = new THREE.Color(0x0e0618);
-        scene.fog.color = new THREE.Color(0x130722);
-        scene.fog.density = 0.005;
-        ambientLight.color = new THREE.Color(0x553366);
-        ambientLight.intensity = 1.6;
-        dirLight.color = new THREE.Color(0xff66bb);
-        dirLight.intensity = 1.2;
+        scene.background = new THREE.Color(0x2d1136);
+        scene.fog.color = new THREE.Color(0x3a1444);
+        scene.fog.near = 120; scene.fog.far = 480;
+        ambientLight.color = new THREE.Color(0x9d4edd);
+        ambientLight.intensity = 1.2;
+        hemiLight.intensity = 1.3;
+        dirLight.color = new THREE.Color(0xff6037);
+        dirLight.intensity = 1.8;
         break;
       case 'night':
-        scene.background = new THREE.Color(0x05040a);
-        scene.fog.color = new THREE.Color(0x070611);
-        scene.fog.density = 0.006;
-        ambientLight.color = new THREE.Color(0x221133);
-        ambientLight.intensity = 1.0;
-        dirLight.color = new THREE.Color(0x442288);
-        dirLight.intensity = 0.8;
+        scene.background = new THREE.Color(0x060814);
+        scene.fog.color = new THREE.Color(0x0b0e24);
+        scene.fog.near = 100; scene.fog.far = 440;
+        ambientLight.color = new THREE.Color(0x3a0ca3);
+        ambientLight.intensity = 1.2;
+        hemiLight.intensity = 1.0;
+        dirLight.color = new THREE.Color(0x4361ee);
+        dirLight.intensity = 1.2;
         break;
       case 'thunderstorm':
-        scene.background = new THREE.Color(0x050b12);
-        scene.fog.color = new THREE.Color(0x081520);
-        scene.fog.density = 0.009;
-        ambientLight.color = new THREE.Color(0x203545);
+        scene.background = new THREE.Color(0x1a2634);
+        scene.fog.color = new THREE.Color(0x243447);
+        scene.fog.near = 90; scene.fog.far = 400;
+        ambientLight.color = new THREE.Color(0x4a6572);
         ambientLight.intensity = 1.1;
-        dirLight.color = new THREE.Color(0x306080);
-        dirLight.intensity = 1.3;
+        hemiLight.intensity = 1.2;
+        dirLight.color = new THREE.Color(0x7395ae);
+        dirLight.intensity = 1.4;
         break;
     }
   }
