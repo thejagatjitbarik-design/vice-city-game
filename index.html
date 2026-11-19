@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ff007f">
+  <title>VICE OUTLAWS - 3D Open World</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌴</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts for GTA Synthwave / Pricedown style vibe -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,800;0,900;1,900&family=Orbitron:wght@700;900&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <!-- 3D Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- GTA Vice City Style HUD Overlay -->
+  <div id="hud">
+    <!-- Top Right: Wanted Level, Cash, Health & Armor -->
+    <div class="hud-top-right">
+      <div class="cash-container">
+        <span class="currency-symbol">$</span><span id="cash-display">0005000</span>
+      </div>
+      <div class="wanted-container" id="wanted-stars">
+        <span class="star" data-index="1">★</span>
+        <span class="star" data-index="2">★</span>
+        <span class="star" data-index="3">★</span>
+        <span class="star" data-index="4">★</span>
+        <span class="star" data-index="5">★</span>
+      </div>
+      <div class="stat-bars">
+        <div class="bar-row">
+          <span class="bar-label">HP</span>
+          <div class="bar-track"><div id="health-bar" class="bar-fill health"></div></div>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">ARM</span>
+          <div class="bar-track"><div id="armor-bar" class="bar-fill armor"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Left: District & Radio / Soundtrack -->
+    <div class="hud-top-left">
+      <div class="game-logo">VICE OUTLAWS</div>
+      <div class="district-name" id="district-text">OCEAN DRIVE</div>
+      <button id="radio-btn" class="hud-btn">📻 RADIO: <span id="radio-status">SYNTHWAVE FM</span></button>
+      <button id="cam-btn" class="hud-btn">🎥 CAM [C]</button>
+    </div>
+
+    <!-- Action & Stunt Popups Center Screen -->
+    <div id="stunt-popup" class="hidden">
+      <div id="stunt-title">SICK DRIFT!</div>
+      <div id="stunt-cash">+$250</div>
+    </div>
+
+    <!-- Cooldown Notification -->
+    <div id="cooldown-banner" class="hidden">
+      POLICE SEARCHING... EVADE SIGHT!
+    </div>
+
+    <!-- Bottom Left: Circular GTA Radar / Mini-Map -->
+    <div class="radar-wrapper">
+      <canvas id="radar-canvas" width="160" height="160"></canvas>
+      <div class="radar-ring"></div>
+      <div class="radar-label">RADAR</div>
+    </div>
+
+    <!-- Bottom Right: Speedometer & Controls Info -->
+    <div class="speedo-wrapper">
+      <div class="speed-number" id="speed-display">0</div>
+      <div class="speed-unit">MPH</div>
+      <div class="gear-display" id="gear-display">1ST</div>
+    </div>
+
+    <!-- Instructions Banner for PC (hidden on touch) -->
+    <div class="pc-controls-hint" id="pc-hints">
+      <span><b>WASD / ARROWS:</b> Drive</span>
+      <span><b>SPACE:</b> Drift / Handbrake</span>
+      <span><b>C:</b> Camera</span>
+      <span><b>R:</b> Reset Car</span>
+      <span><b>H:</b> Horn</span>
+    </div>
+
+    <!-- Mobile On-Screen Touch Controls -->
+    <div class="touch-controls" id="touch-controls">
+      <!-- Steering Left/Right on bottom-left -->
+      <div class="touch-group touch-left">
+        <button class="t-btn" id="btn-left">◀</button>
+        <button class="t-btn" id="btn-right">▶</button>
+      </div>
+      <!-- Pedals on bottom-right -->
+      <div class="touch-group touch-right">
+        <button class="t-btn t-brake" id="btn-brake">REVERSE / STOP</button>
+        <button class="t-btn t-handbrake" id="btn-drift">DRIFT</button>
+        <button class="t-btn t-gas" id="btn-gas">DRIVE ▲</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customization & Garage Modal -->
+  <div id="garage-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>CUSTOMIZE RIDE</h2>
+      <div class="color-options">
+        <p>Car Color:</p>
+        <div class="swatches">
+          <button class="swatch" style="background:#ff0055" data-color="#ff0055"></button>
+          <button class="swatch" style="background:#00f0ff" data-color="#00f0ff"></button>
+          <button class="swatch" style="background:#ffaa00" data-color="#ffaa00"></button>
+          <button class="swatch" style="background:#9900ff" data-color="#9900ff"></button>
+          <button class="swatch" style="background:#ffffff" data-color="#ffffff"></button>
+          <button class="swatch" style="background:#111111" data-color="#111111"></button>
+        </div>
+      </div>
+      <div class="color-options">
+        <p>Neon Underglow:</p>
+        <div class="swatches">
+          <button class="swatch-neon" style="background:#00f0ff" data-neon="#00f0ff"></button>
+          <button class="swatch-neon" style="background:#ff0077" data-neon="#ff0077"></button>
+          <button class="swatch-neon" style="background:#00ff66" data-neon="#00ff66"></button>
+          <button class="swatch-neon" style="background:#ffe600" data-neon="#ffe600"></button>
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button id="ad-cash-btn" class="modal-btn gold-btn">📺 WATCH AD: FREE +$5,000</button>
+        <button id="close-garage-btn" class="modal-btn">BACK TO STREETS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Busted / Wasted Screen -->
+  <div id="busted-screen" class="death-screen hidden">
+    <h1 id="death-title">BUSTED</h1>
+    <p id="death-subtitle">The Vice City Police confiscated $1,000</p>
+    <button id="respawn-btn" class="respawn-btn">PAY BAIL & RESPAWN</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
